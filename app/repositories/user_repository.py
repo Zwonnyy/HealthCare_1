@@ -2,9 +2,10 @@ from datetime import date, datetime
 from typing import Any
 
 from pydantic import EmailStr
+from tortoise.expressions import Q
 
 from app.core import config
-from app.models.users import Gender, User
+from app.models.users import Gender, User, UserRole
 
 ALLOWED_UPDATE_FIELDS = ["name", "phone_number", "gender", "birthday"]
 UPDATED_AT_FIELD = "updated_at"
@@ -29,6 +30,7 @@ class UserRepository:
         gender: Gender,
         birthday: date,
         *,
+        role: UserRole = UserRole.PATIENT,
         is_active: bool = True,
         is_admin: bool = False,
     ) -> User:
@@ -39,6 +41,7 @@ class UserRepository:
             phone_number=phone_number,
             gender=gender,
             birthday=birthday,
+            role=role,
             is_active=is_active,
             is_admin=is_admin,
         )
@@ -54,6 +57,11 @@ class UserRepository:
 
     async def update_last_login(self, user_id: int) -> None:
         await self._model.filter(id=user_id).update(last_login=datetime.now(config.TIMEZONE))
+
+    async def search_patients(self, q: str) -> list[User]:
+        return await self._model.filter(
+            Q(role=UserRole.PATIENT) & Q(Q(name__icontains=q) | Q(email__icontains=q))
+        ).limit(10)
 
     async def update_instance(self, user: User, data: dict[str, Any]) -> None:
         update_fields = []

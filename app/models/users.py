@@ -8,6 +8,11 @@ class Gender(StrEnum):
     FEMALE = "FEMALE"
 
 
+class UserRole(StrEnum):
+    DOCTOR = "DOCTOR"
+    PATIENT = "PATIENT"
+
+
 class User(models.Model):
     id = fields.BigIntField(primary_key=True)
     email = fields.CharField(max_length=40)
@@ -16,6 +21,7 @@ class User(models.Model):
     gender = fields.CharEnumField(enum_type=Gender)
     birthday = fields.DateField()
     phone_number = fields.CharField(max_length=11)
+    role = fields.CharEnumField(enum_type=UserRole, default=UserRole.PATIENT)
     is_active = fields.BooleanField(default=True)
     is_admin = fields.BooleanField(default=False)
     last_login = fields.DatetimeField(null=True)

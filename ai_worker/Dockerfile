@@ -1,19 +1,26 @@
 FROM python:3.13-slim
 
 WORKDIR /app
+ENV PYTHONPATH=/app
 
-# 1. uv 설치 (공식 이미지에서 복사해오는 가장 깔끔한 방법)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    python3-dev \
+    libffi-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# 1. uv 설치
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
-# 2. 의존성 패키지 관리 파일을 컨테이너 내부에 복사합니다.
+# 2. 의존성 패키지 관리 파일 복사
 COPY pyproject.toml uv.lock ./
 
-# 3. pyproject.toml에 명시된 의존성 패키지 중에서 'app' 그룹만 설치합니다.
-RUN uv sync --group ai --no-dev --frozen
+# 3. ai + app 그룹 패키지 설치 (워커는 app 모델도 임포트하므로 둘 다 필요)
+RUN uv sync --group ai --group app --no-dev --frozen
 
-# 4. 로컬 소스 코드를 컨테이너 내부로 복사합니다.
-COPY ./ai_worker ./app
+# 4. 소스 코드 복사 (app 모델을 임포트하므로 두 디렉토리 모두 필요)
+COPY ./app ./app
+COPY ./ai_worker ./ai_worker
 
-# 5. 해당 이미지를 활용하여 도커컨테이너 실행시 실행되는 명령어입니다.
-# 아래 커맨드를 수정한 뒤에 사용합니다.
-CMD ["echo", "'hello world'"]
+# 5. Celery 워커 실행
+CMD ["uv", "run", "--no-sync", "celery", "-A", "ai_worker.main", "worker", "--loglevel=info"]

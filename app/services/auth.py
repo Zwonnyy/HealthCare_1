@@ -31,11 +31,12 @@ class AuthService:
         async with in_transaction():
             user = await self.user_repo.create_user(
                 email=data.email,
-                hashed_password=hash_password(data.password),  # 해시화된 비밀번호를 사용
+                hashed_password=hash_password(data.password),
                 name=data.name,
                 phone_number=normalized_phone_number,
                 gender=data.gender,
                 birthday=data.birth_date,
+                role=data.role,
             )
 
             return user
@@ -63,7 +64,10 @@ class AuthService:
 
     async def login(self, user: User) -> dict[str, AccessToken | RefreshToken]:
         await self.user_repo.update_last_login(user.id)
-        return self.jwt_service.issue_jwt_pair(user)
+        return await self.jwt_service.issue_jwt_pair(user)
+
+    async def logout(self, refresh_token: str) -> None:
+        await self.jwt_service.revoke_refresh_token(refresh_token)
 
     async def check_email_exists(self, email: str | EmailStr) -> None:
         if await self.user_repo.exists_by_email(email):

@@ -49,7 +49,24 @@ async def token_refresh(
 ) -> Response:
     if not refresh_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token is missing.")
-    access_token = jwt_service.refresh_jwt(refresh_token)
+    access_token = await jwt_service.refresh_jwt(refresh_token)
     return Response(
         content=TokenRefreshResponse(access_token=str(access_token)).model_dump(), status_code=status.HTTP_200_OK
     )
+
+
+@auth_router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+async def logout(
+    auth_service: Annotated[AuthService, Depends(AuthService)],
+    refresh_token: Annotated[str | None, Cookie()] = None,
+) -> Response:
+    if refresh_token:
+        await auth_service.logout(refresh_token)
+    resp = Response(status_code=status.HTTP_204_NO_CONTENT)
+    resp.delete_cookie(
+        key="refresh_token",
+        httponly=True,
+        secure=True if config.ENV == Env.PROD else False,
+        domain=config.COOKIE_DOMAIN or None,
+    )
+    return resp
