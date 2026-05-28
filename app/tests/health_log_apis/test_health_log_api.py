@@ -10,14 +10,14 @@ from app.models.users import Gender, User, UserRole
 
 
 class TestHealthLogAPI(TestCase):
-    async def _create_patient(self, email: str) -> tuple[int, str]:
+    async def _create_patient(self, email: str, phone: str = "01011112222") -> tuple[int, str]:
         signup_data = {
             "email": email,
             "password": "Password123!",
             "name": "테스트환자",
             "gender": "MALE",
             "birth_date": "1995-03-15",
-            "phone_number": "01011112222",
+            "phone_number": phone,
         }
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             await client.post("/api/v1/auth/signup", json=signup_data)
@@ -105,8 +105,8 @@ class TestHealthLogAPI(TestCase):
         assert response.json()["notes"] == "진통제 복용"
 
     async def test_get_health_log_other_patient_forbidden(self):
-        _, token1 = await self._create_patient("hl_other1@example.com")
-        _, token2 = await self._create_patient("hl_other2@example.com")
+        _, token1 = await self._create_patient("hl_other1@example.com", "01011110091")
+        _, token2 = await self._create_patient("hl_other2@example.com", "01011110092")
         payload = {
             "log_date": "2026-05-04",
             "pain_score": 4,
@@ -174,8 +174,8 @@ class TestHealthLogAPI(TestCase):
         assert response.json()["id"] == analysis_id
 
     async def test_get_analysis_other_patient_forbidden(self):
-        _, token1 = await self._create_patient("hl_ana_own@example.com")
-        _, token2 = await self._create_patient("hl_ana_other@example.com")
+        _, token1 = await self._create_patient("hl_ana_own@example.com", "01011110093")
+        _, token2 = await self._create_patient("hl_ana_other@example.com", "01011110094")
         payload = {
             "log_date": "2026-05-08",
             "pain_score": 3,
