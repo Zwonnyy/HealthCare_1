@@ -121,27 +121,23 @@ async def get_record_guides(
     return Response([GuideResponse.model_validate(g).model_dump() for g in guides], status_code=status.HTTP_200_OK)
 
 
-@record_router.get(
-    "/{record_id}/health-logs", response_model=list[HealthLogResponse], status_code=status.HTTP_200_OK
-)
+@record_router.get("/{record_id}/health-logs", response_model=list[HealthLogResponse], status_code=status.HTTP_200_OK)
 async def get_record_health_logs(
     record_id: int,
     user: Annotated[User, Depends(get_request_user)],
     health_log_service: Annotated[HealthLogService, Depends(HealthLogService)],
 ) -> Response:
     logs = await health_log_service.get_record_logs(user=user, record_id=record_id)
-    return Response([HealthLogResponse.model_validate(l).model_dump() for l in logs], status_code=status.HTTP_200_OK)
+    return Response(
+        [HealthLogResponse.model_validate(log).model_dump() for log in logs], status_code=status.HTTP_200_OK
+    )
 
 
-@record_router.get(
-    "/{record_id}/messages", response_model=list[MessageResponse], status_code=status.HTTP_200_OK
-)
+@record_router.get("/{record_id}/messages", response_model=list[MessageResponse], status_code=status.HTTP_200_OK)
 async def get_record_messages(
     record_id: int,
     user: Annotated[User, Depends(get_request_user)],
     message_service: Annotated[MessageService, Depends(MessageService)],
 ) -> Response:
     messages = await message_service.get_record_messages(user=user, record_id=record_id)
-    return Response(
-        [MessageResponse.model_validate(m).model_dump() for m in messages], status_code=status.HTTP_200_OK
-    )
+    return Response([MessageResponse.model_validate(m).model_dump() for m in messages], status_code=status.HTTP_200_OK)

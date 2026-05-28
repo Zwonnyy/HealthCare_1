@@ -79,8 +79,7 @@ async def _analyze_health_logs(analysis_id: int) -> None:
         mood_labels = {"GREAT": "매우 좋음", "GOOD": "좋음", "NORMAL": "보통", "BAD": "나쁨", "TERRIBLE": "매우 나쁨"}
         logs_text = "\n".join(
             f"- [{log.log_date}] 통증: {log.pain_score}/10, 기분: {mood_labels.get(log.mood, log.mood)}, "
-            f"증상: {log.symptoms_text}"
-            + (f", 메모: {log.notes}" if log.notes else "")
+            f"증상: {log.symptoms_text}" + (f", 메모: {log.notes}" if log.notes else "")
             for log in logs
         )
 

@@ -32,7 +32,9 @@ async def get_my_health_logs(
     service: Annotated[HealthLogService, Depends(HealthLogService)],
 ) -> Response:
     logs = await service.get_my_logs(user=patient)
-    return Response([HealthLogResponse.model_validate(l).model_dump() for l in logs], status_code=status.HTTP_200_OK)
+    return Response(
+        [HealthLogResponse.model_validate(log).model_dump() for log in logs], status_code=status.HTTP_200_OK
+    )
 
 
 @health_log_router.get("/{log_id}", response_model=HealthLogResponse, status_code=status.HTTP_200_OK)

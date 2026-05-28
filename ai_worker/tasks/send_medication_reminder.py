@@ -3,6 +3,7 @@ import logging
 from datetime import date, timedelta
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from typing import TYPE_CHECKING
 
 import aiosmtplib
 from celery import shared_task
@@ -10,6 +11,10 @@ from tortoise import Tortoise
 
 from ai_worker.core import config
 from ai_worker.core.databases import TORTOISE_ORM
+
+if TYPE_CHECKING:
+    from app.models.records import Prescription
+    from app.models.users import User
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +27,7 @@ def send_medication_reminder_task() -> None:
 async def _send_medication_reminders() -> None:
     await Tortoise.init(config=TORTOISE_ORM)
     try:
-        from app.models.records import MedicalRecord, Prescription
+        from app.models.records import Prescription
         from app.models.users import User
 
         today = date.today()

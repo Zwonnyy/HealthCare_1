@@ -35,7 +35,9 @@ class MessageService:
             doctor_id = sender.id if sender.role == UserRole.DOCTOR else receiver.id
             patient_id = sender.id if sender.role == UserRole.PATIENT else receiver.id
             if record.doctor_id != doctor_id or record.patient_id != patient_id:
-                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="해당 진료 기록에 대한 권한이 없습니다.")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN, detail="해당 진료 기록에 대한 권한이 없습니다."
+                )
 
         return await self.message_repo.create_message(
             sender_id=sender.id,

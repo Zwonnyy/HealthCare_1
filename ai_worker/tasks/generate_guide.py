@@ -1,8 +1,8 @@
 import asyncio
 
+from celery import shared_task
 from google import genai
 from google.genai import types
-from celery import shared_task
 from tortoise import Tortoise
 
 from ai_worker.core import config

@@ -1,6 +1,6 @@
 from datetime import date
 
-from app.models.health_logs import AnalysisStatus, HealthLog, HealthLogAnalysis, Mood
+from app.models.health_logs import HealthLog, HealthLogAnalysis, Mood
 
 
 class HealthLogRepository:

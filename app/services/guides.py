@@ -86,11 +86,14 @@ class GuideService:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="접근 권한이 없습니다.")
 
         prescriptions = await record.prescriptions.all()
-        prescriptions_text = "\n".join(
-            f"- {p.medication_name} {p.dosage}, {p.frequency}, {p.duration_days}일 복용"
-            + (f" (특이사항: {p.instructions})" if p.instructions else "")
-            for p in prescriptions
-        ) or "처방 약물 없음"
+        prescriptions_text = (
+            "\n".join(
+                f"- {p.medication_name} {p.dosage}, {p.frequency}, {p.duration_days}일 복용"
+                + (f" (특이사항: {p.instructions})" if p.instructions else "")
+                for p in prescriptions
+            )
+            or "처방 약물 없음"
+        )
 
         guide = await self.guide_repo.create_guide(record_id=record_id)
         await Guide.filter(id=guide.id).update(status=GuideStatus.GENERATING)

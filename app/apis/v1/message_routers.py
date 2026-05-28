@@ -27,9 +27,7 @@ async def get_inbox(
     service: Annotated[MessageService, Depends(MessageService)],
 ) -> Response:
     messages = await service.get_inbox(user=user)
-    return Response(
-        [MessageResponse.model_validate(m).model_dump() for m in messages], status_code=status.HTTP_200_OK
-    )
+    return Response([MessageResponse.model_validate(m).model_dump() for m in messages], status_code=status.HTTP_200_OK)
 
 
 @message_router.get("/sent", response_model=list[MessageResponse], status_code=status.HTTP_200_OK)
@@ -38,9 +36,7 @@ async def get_sent(
     service: Annotated[MessageService, Depends(MessageService)],
 ) -> Response:
     messages = await service.get_sent(user=user)
-    return Response(
-        [MessageResponse.model_validate(m).model_dump() for m in messages], status_code=status.HTTP_200_OK
-    )
+    return Response([MessageResponse.model_validate(m).model_dump() for m in messages], status_code=status.HTTP_200_OK)
 
 
 @message_router.get("/unread-count", status_code=status.HTTP_200_OK)

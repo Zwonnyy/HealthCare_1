@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.models.messages import Message
 
@@ -36,7 +36,7 @@ class MessageRepository:
     async def mark_as_read(self, message_id: int) -> None:
         await self._model.filter(id=message_id).update(
             is_read=True,
-            read_at=datetime.now(tz=timezone.utc),
+            read_at=datetime.now(tz=UTC),
         )
 
     async def count_unread(self, user_id: int) -> int:
