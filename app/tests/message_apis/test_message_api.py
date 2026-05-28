@@ -134,7 +134,7 @@ class TestMessageAPI(TestCase):
                 "/api/v1/messages/unread-count", headers={"Authorization": f"Bearer {patient_token}"}
             )
         assert response.status_code == status.HTTP_200_OK
-        assert response.json()["count"] == 1
+        assert response.json()["unread_count"] == 1
 
     async def test_get_message_marks_as_read(self):
         _, doctor_token = await self._create_doctor("msg_doc9@example.com", "01011110009")
@@ -157,7 +157,7 @@ class TestMessageAPI(TestCase):
             )
         assert get_response.status_code == status.HTTP_200_OK
         assert get_response.json()["is_read"] is True
-        assert unread_response.json()["count"] == 0
+        assert unread_response.json()["unread_count"] == 0
 
     async def test_get_message_unauthorized_user_forbidden(self):
         _, doctor_token = await self._create_doctor("msg_doc10@example.com", "01011110010")

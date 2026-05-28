@@ -149,7 +149,7 @@ class TestHealthLogAPI(TestCase):
         }
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             await client.post("/api/v1/health-logs", json=payload, headers=headers)
-            with patch("app.core.celery.celery_client.send_task") as mock_task:
+            with patch("app.services.health_logs.celery_client.send_task") as mock_task:
                 response = await client.post("/api/v1/health-logs/analyze", json={}, headers=headers)
                 mock_task.assert_called_once_with("analyze_health_logs", args=[response.json()["id"]])
         assert response.status_code == status.HTTP_202_ACCEPTED
@@ -166,7 +166,7 @@ class TestHealthLogAPI(TestCase):
         }
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             await client.post("/api/v1/health-logs", json=payload, headers=headers)
-            with patch("app.core.celery.celery_client.send_task"):
+            with patch("app.services.health_logs.celery_client.send_task"):
                 analysis_response = await client.post("/api/v1/health-logs/analyze", json={}, headers=headers)
             analysis_id = analysis_response.json()["id"]
             response = await client.get(f"/api/v1/health-logs/analyses/{analysis_id}", headers=headers)
@@ -184,7 +184,7 @@ class TestHealthLogAPI(TestCase):
         }
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             await client.post("/api/v1/health-logs", json=payload, headers={"Authorization": f"Bearer {token1}"})
-            with patch("app.core.celery.celery_client.send_task"):
+            with patch("app.services.health_logs.celery_client.send_task"):
                 analysis_response = await client.post(
                     "/api/v1/health-logs/analyze", json={}, headers={"Authorization": f"Bearer {token1}"}
                 )
