@@ -51,6 +51,22 @@ jobs:
           MYSQL_DATABASE: ai_health
         ports:
           - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -u root -ppw1234"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+          --health-start-period=30s
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: pw1234
+      DB_NAME: ai_health
+      SECRET_KEY: ci-test-secret-key
+      REDIS_URL: redis://localhost:6379/2
+      CELERY_BROKER_URL: redis://localhost:6379/0
+      GEMINI_API_KEY: dummy
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
