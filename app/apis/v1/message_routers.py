@@ -5,6 +5,7 @@ from fastapi.responses import ORJSONResponse as Response
 
 from app.dependencies.security import get_request_user
 from app.dtos.messages import MessageResponse, MessageSendRequest
+from app.dtos.pagination import PaginatedResponse, PaginationParams
 from app.models.users import User
 from app.services.messages import MessageService
 
@@ -21,22 +22,40 @@ async def send_message(
     return Response(MessageResponse.model_validate(message).model_dump(), status_code=status.HTTP_201_CREATED)
 
 
-@message_router.get("/inbox", response_model=list[MessageResponse], status_code=status.HTTP_200_OK)
+@message_router.get("/inbox", response_model=PaginatedResponse[MessageResponse], status_code=status.HTTP_200_OK)
 async def get_inbox(
     user: Annotated[User, Depends(get_request_user)],
     service: Annotated[MessageService, Depends(MessageService)],
+    pagination: Annotated[PaginationParams, Depends()],
 ) -> Response:
-    messages = await service.get_inbox(user=user)
-    return Response([MessageResponse.model_validate(m).model_dump() for m in messages], status_code=status.HTTP_200_OK)
+    messages, total = await service.get_inbox(user=user, offset=pagination.offset, limit=pagination.size)
+    return Response(
+        PaginatedResponse.create(
+            items=[MessageResponse.model_validate(m) for m in messages],
+            total=total,
+            page=pagination.page,
+            size=pagination.size,
+        ).model_dump(),
+        status_code=status.HTTP_200_OK,
+    )
 
 
-@message_router.get("/sent", response_model=list[MessageResponse], status_code=status.HTTP_200_OK)
+@message_router.get("/sent", response_model=PaginatedResponse[MessageResponse], status_code=status.HTTP_200_OK)
 async def get_sent(
     user: Annotated[User, Depends(get_request_user)],
     service: Annotated[MessageService, Depends(MessageService)],
+    pagination: Annotated[PaginationParams, Depends()],
 ) -> Response:
-    messages = await service.get_sent(user=user)
-    return Response([MessageResponse.model_validate(m).model_dump() for m in messages], status_code=status.HTTP_200_OK)
+    messages, total = await service.get_sent(user=user, offset=pagination.offset, limit=pagination.size)
+    return Response(
+        PaginatedResponse.create(
+            items=[MessageResponse.model_validate(m) for m in messages],
+            total=total,
+            page=pagination.page,
+            size=pagination.size,
+        ).model_dump(),
+        status_code=status.HTTP_200_OK,
+    )
 
 
 @message_router.get("/unread-count", status_code=status.HTTP_200_OK)

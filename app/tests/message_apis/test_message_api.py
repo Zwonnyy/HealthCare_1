@@ -103,8 +103,8 @@ class TestMessageAPI(TestCase):
             # 환자의 수신함 조회
             response = await client.get("/api/v1/messages/inbox", headers={"Authorization": f"Bearer {patient_token}"})
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()) == 1
-        assert response.json()[0]["content"] == "받은 메시지 테스트"
+        assert response.json()["total"] == 1
+        assert response.json()["items"][0]["content"] == "받은 메시지 테스트"
 
     async def test_get_sent(self):
         doctor_id, doctor_token = await self._create_doctor("msg_doc7@example.com", "01011110007")
@@ -118,7 +118,7 @@ class TestMessageAPI(TestCase):
             )
             response = await client.get("/api/v1/messages/sent", headers={"Authorization": f"Bearer {doctor_token}"})
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()) == 1
+        assert response.json()["total"] == 1
 
     async def test_get_unread_count(self):
         _, doctor_token = await self._create_doctor("msg_doc8@example.com", "01011110008")

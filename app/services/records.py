@@ -33,10 +33,14 @@ class MedicalRecordService:
                 )
         return record
 
-    async def get_records(self, user: User) -> list[MedicalRecord]:
+    async def get_records(self, user: User, offset: int = 0, limit: int = 20) -> tuple[list[MedicalRecord], int]:
         if user.role == UserRole.DOCTOR:
-            return await self.record_repo.get_doctor_records(user.id)
-        return await self.record_repo.get_patient_records(user.id)
+            items = await self.record_repo.get_doctor_records(user.id, offset=offset, limit=limit)
+            total = await self.record_repo.count_doctor_records(user.id)
+        else:
+            items = await self.record_repo.get_patient_records(user.id, offset=offset, limit=limit)
+            total = await self.record_repo.count_patient_records(user.id)
+        return items, total
 
     async def get_record(self, user: User, record_id: int) -> MedicalRecord:
         record = await self.record_repo.get_record(record_id)

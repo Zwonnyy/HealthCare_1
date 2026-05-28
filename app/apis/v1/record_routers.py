@@ -8,6 +8,7 @@ from app.dependencies.security import get_doctor_user, get_patient_user, get_req
 from app.dtos.guides import GuideResponse
 from app.dtos.health_logs import HealthLogResponse
 from app.dtos.messages import MessageResponse
+from app.dtos.pagination import PaginatedResponse, PaginationParams
 from app.dtos.records import MedicalRecordCreateRequest, MedicalRecordResponse, PrescriptionResponse
 from app.models.users import User
 from app.services.guides import GuideService
@@ -40,16 +41,17 @@ async def create_record(
     return Response(data.model_dump(), status_code=status.HTTP_201_CREATED)
 
 
-@record_router.get("", response_model=list[MedicalRecordResponse], status_code=status.HTTP_200_OK)
+@record_router.get("", response_model=PaginatedResponse[MedicalRecordResponse], status_code=status.HTTP_200_OK)
 async def get_records(
     user: Annotated[User, Depends(get_request_user)],
     record_service: Annotated[MedicalRecordService, Depends(MedicalRecordService)],
+    pagination: Annotated[PaginationParams, Depends()],
 ) -> Response:
-    records = await record_service.get_records(user=user)
-    result = []
+    records, total = await record_service.get_records(user=user, offset=pagination.offset, limit=pagination.size)
+    items = []
     for record in records:
         prescriptions = await record.prescriptions.all()
-        result.append(
+        items.append(
             MedicalRecordResponse(
                 id=record.id,
                 patient_id=record.patient_id,
@@ -60,9 +62,12 @@ async def get_records(
                 visited_at=record.visited_at,
                 created_at=record.created_at,
                 prescriptions=[PrescriptionResponse.model_validate(p) for p in prescriptions],
-            ).model_dump()
+            )
         )
-    return Response(result, status_code=status.HTTP_200_OK)
+    return Response(
+        PaginatedResponse.create(items=items, total=total, page=pagination.page, size=pagination.size).model_dump(),
+        status_code=status.HTTP_200_OK,
+    )
 
 
 @record_router.get("/{record_id}", response_model=MedicalRecordResponse, status_code=status.HTTP_200_OK)

@@ -31,8 +31,11 @@ class HealthLogRepository:
     async def get_log(self, log_id: int) -> HealthLog | None:
         return await self._log_model.get_or_none(id=log_id)
 
-    async def get_patient_logs(self, patient_id: int) -> list[HealthLog]:
-        return await self._log_model.filter(patient_id=patient_id).order_by("-log_date")
+    async def get_patient_logs(self, patient_id: int, offset: int = 0, limit: int = 20) -> list[HealthLog]:
+        return await self._log_model.filter(patient_id=patient_id).order_by("-log_date").offset(offset).limit(limit)
+
+    async def count_patient_logs(self, patient_id: int) -> int:
+        return await self._log_model.filter(patient_id=patient_id).count()
 
     async def get_record_logs(self, record_id: int) -> list[HealthLog]:
         return await self._log_model.filter(record_id=record_id).order_by("log_date")

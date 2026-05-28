@@ -85,7 +85,8 @@ class TestHealthLogAPI(TestCase):
             await client.post("/api/v1/health-logs", json=payload, headers=headers)
             response = await client.get("/api/v1/health-logs", headers=headers)
         assert response.status_code == status.HTTP_200_OK
-        assert len(response.json()) == 1
+        assert response.json()["total"] == 1
+        assert len(response.json()["items"]) == 1
 
     async def test_get_health_log_by_id(self):
         _, token = await self._create_patient("hl_get@example.com")

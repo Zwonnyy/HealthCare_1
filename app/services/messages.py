@@ -46,11 +46,15 @@ class MessageService:
             content=data.content,
         )
 
-    async def get_inbox(self, user: User) -> list[Message]:
-        return await self.message_repo.get_inbox(user.id)
+    async def get_inbox(self, user: User, offset: int = 0, limit: int = 20) -> tuple[list[Message], int]:
+        items = await self.message_repo.get_inbox(user.id, offset=offset, limit=limit)
+        total = await self.message_repo.count_inbox(user.id)
+        return items, total
 
-    async def get_sent(self, user: User) -> list[Message]:
-        return await self.message_repo.get_sent(user.id)
+    async def get_sent(self, user: User, offset: int = 0, limit: int = 20) -> tuple[list[Message], int]:
+        items = await self.message_repo.get_sent(user.id, offset=offset, limit=limit)
+        total = await self.message_repo.count_sent(user.id)
+        return items, total
 
     async def get_message(self, user: User, message_id: int) -> Message:
         message = await self.message_repo.get_message(message_id)

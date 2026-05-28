@@ -10,6 +10,7 @@ from app.dtos.health_logs import (
     HealthLogCreateRequest,
     HealthLogResponse,
 )
+from app.dtos.pagination import PaginatedResponse, PaginationParams
 from app.models.users import User
 from app.services.health_logs import HealthLogService
 
@@ -26,14 +27,21 @@ async def create_health_log(
     return Response(HealthLogResponse.model_validate(log).model_dump(), status_code=status.HTTP_201_CREATED)
 
 
-@health_log_router.get("", response_model=list[HealthLogResponse], status_code=status.HTTP_200_OK)
+@health_log_router.get("", response_model=PaginatedResponse[HealthLogResponse], status_code=status.HTTP_200_OK)
 async def get_my_health_logs(
     patient: Annotated[User, Depends(get_patient_user)],
     service: Annotated[HealthLogService, Depends(HealthLogService)],
+    pagination: Annotated[PaginationParams, Depends()],
 ) -> Response:
-    logs = await service.get_my_logs(user=patient)
+    logs, total = await service.get_my_logs(user=patient, offset=pagination.offset, limit=pagination.size)
     return Response(
-        [HealthLogResponse.model_validate(log).model_dump() for log in logs], status_code=status.HTTP_200_OK
+        PaginatedResponse.create(
+            items=[HealthLogResponse.model_validate(log) for log in logs],
+            total=total,
+            page=pagination.page,
+            size=pagination.size,
+        ).model_dump(),
+        status_code=status.HTTP_200_OK,
     )
 
 

@@ -47,8 +47,14 @@ class RecordRepository:
     async def get_record(self, record_id: int) -> MedicalRecord | None:
         return await self._model.get_or_none(id=record_id)
 
-    async def get_patient_records(self, patient_id: int) -> list[MedicalRecord]:
-        return await self._model.filter(patient_id=patient_id).order_by("-visited_at")
+    async def get_patient_records(self, patient_id: int, offset: int = 0, limit: int = 20) -> list[MedicalRecord]:
+        return await self._model.filter(patient_id=patient_id).order_by("-visited_at").offset(offset).limit(limit)
 
-    async def get_doctor_records(self, doctor_id: int) -> list[MedicalRecord]:
-        return await self._model.filter(doctor_id=doctor_id).order_by("-visited_at")
+    async def count_patient_records(self, patient_id: int) -> int:
+        return await self._model.filter(patient_id=patient_id).count()
+
+    async def get_doctor_records(self, doctor_id: int, offset: int = 0, limit: int = 20) -> list[MedicalRecord]:
+        return await self._model.filter(doctor_id=doctor_id).order_by("-visited_at").offset(offset).limit(limit)
+
+    async def count_doctor_records(self, doctor_id: int) -> int:
+        return await self._model.filter(doctor_id=doctor_id).count()

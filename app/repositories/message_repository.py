@@ -24,11 +24,17 @@ class MessageRepository:
     async def get_message(self, message_id: int) -> Message | None:
         return await self._model.get_or_none(id=message_id)
 
-    async def get_inbox(self, user_id: int) -> list[Message]:
-        return await self._model.filter(receiver_id=user_id).order_by("-created_at")
+    async def get_inbox(self, user_id: int, offset: int = 0, limit: int = 20) -> list[Message]:
+        return await self._model.filter(receiver_id=user_id).order_by("-created_at").offset(offset).limit(limit)
 
-    async def get_sent(self, user_id: int) -> list[Message]:
-        return await self._model.filter(sender_id=user_id).order_by("-created_at")
+    async def count_inbox(self, user_id: int) -> int:
+        return await self._model.filter(receiver_id=user_id).count()
+
+    async def get_sent(self, user_id: int, offset: int = 0, limit: int = 20) -> list[Message]:
+        return await self._model.filter(sender_id=user_id).order_by("-created_at").offset(offset).limit(limit)
+
+    async def count_sent(self, user_id: int) -> int:
+        return await self._model.filter(sender_id=user_id).count()
 
     async def get_record_messages(self, record_id: int) -> list[Message]:
         return await self._model.filter(record_id=record_id).order_by("created_at")

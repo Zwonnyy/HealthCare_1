@@ -32,8 +32,10 @@ class HealthLogService:
             notes=data.notes,
         )
 
-    async def get_my_logs(self, user: User) -> list[HealthLog]:
-        return await self.log_repo.get_patient_logs(user.id)
+    async def get_my_logs(self, user: User, offset: int = 0, limit: int = 20) -> tuple[list[HealthLog], int]:
+        items = await self.log_repo.get_patient_logs(user.id, offset=offset, limit=limit)
+        total = await self.log_repo.count_patient_logs(user.id)
+        return items, total
 
     async def get_log(self, user: User, log_id: int) -> HealthLog:
         log = await self.log_repo.get_log(log_id)
@@ -79,7 +81,7 @@ class HealthLogService:
         logs = (
             await self.log_repo.get_record_logs(record_id)
             if record_id
-            else await self.log_repo.get_patient_logs(user.id)
+            else await self.log_repo.get_patient_logs(user.id, limit=10000)
         )
         if not logs:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="분석할 건강 일지가 없습니다.")
