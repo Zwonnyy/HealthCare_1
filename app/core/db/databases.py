@@ -11,6 +11,7 @@ TORTOISE_APP_MODELS = [
     "app.models.guides",
     "app.models.health_logs",
     "app.models.messages",
+    "app.models.notifications",
 ]
 
 TORTOISE_ORM = {

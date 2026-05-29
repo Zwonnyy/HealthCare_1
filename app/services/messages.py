@@ -3,8 +3,10 @@ from starlette import status
 
 from app.dtos.messages import MessageSendRequest
 from app.models.messages import Message
+from app.models.notifications import NotificationType
 from app.models.users import User, UserRole
 from app.repositories.message_repository import MessageRepository
+from app.repositories.notification_repository import NotificationRepository
 from app.repositories.record_repository import RecordRepository
 from app.repositories.user_repository import UserRepository
 
@@ -13,6 +15,7 @@ class MessageService:
     def __init__(self):
         self.message_repo = MessageRepository()
         self.record_repo = RecordRepository()
+        self.notification_repo = NotificationRepository()
         self.user_repo = UserRepository()
 
     async def send_message(self, sender: User, data: MessageSendRequest) -> Message:
@@ -39,12 +42,19 @@ class MessageService:
                     status_code=status.HTTP_403_FORBIDDEN, detail="해당 진료 기록에 대한 권한이 없습니다."
                 )
 
-        return await self.message_repo.create_message(
+        message = await self.message_repo.create_message(
             sender_id=sender.id,
             receiver_id=receiver.id,
             record_id=data.record_id,
             content=data.content,
         )
+        await self.notification_repo.create_notification(
+            user_id=receiver.id,
+            notification_type=NotificationType.MESSAGE_RECEIVED,
+            title="새 메시지",
+            body=f"{sender.name}님으로부터 메시지가 도착했습니다.",
+        )
+        return message
 
     async def get_inbox(self, user: User, offset: int = 0, limit: int = 20) -> tuple[list[Message], int]:
         items = await self.message_repo.get_inbox(user.id, offset=offset, limit=limit)

@@ -97,6 +97,14 @@ async def _analyze_health_logs(analysis_id: int) -> None:
             status=AnalysisStatus.COMPLETED,
             analysis_text=response.text,
         )
+        from app.models.notifications import Notification, NotificationType
+
+        await Notification.create(
+            user_id=analysis.patient_id,
+            notification_type=NotificationType.ANALYSIS_COMPLETED,
+            title="건강 일지 분석 완료",
+            body="건강 일지 분석 결과가 준비되었습니다.",
+        )
 
     except Exception as e:
         await HealthLogAnalysis.filter(id=analysis_id).update(

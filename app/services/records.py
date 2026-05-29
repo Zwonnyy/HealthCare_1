@@ -3,14 +3,17 @@ from starlette import status
 from tortoise.transactions import in_transaction
 
 from app.dtos.records import MedicalRecordCreateRequest
+from app.models.notifications import NotificationType
 from app.models.records import MedicalRecord
 from app.models.users import User, UserRole
+from app.repositories.notification_repository import NotificationRepository
 from app.repositories.record_repository import RecordRepository
 
 
 class MedicalRecordService:
     def __init__(self):
         self.record_repo = RecordRepository()
+        self.notification_repo = NotificationRepository()
 
     async def create_record(self, doctor: User, data: MedicalRecordCreateRequest) -> MedicalRecord:
         async with in_transaction():
@@ -31,6 +34,12 @@ class MedicalRecordService:
                     duration_days=p.duration_days,
                     instructions=p.instructions,
                 )
+        await self.notification_repo.create_notification(
+            user_id=data.patient_id,
+            notification_type=NotificationType.RECORD_CREATED,
+            title="새 진료 기록",
+            body=f"'{data.diagnosis}' 진료 기록이 등록되었습니다.",
+        )
         return record
 
     async def get_records(self, user: User, offset: int = 0, limit: int = 20) -> tuple[list[MedicalRecord], int]:

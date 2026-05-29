@@ -90,6 +90,14 @@ async def _generate_guide(guide_id: int) -> None:
             medication_guide=medication_guide,
             lifestyle_guide=lifestyle_guide,
         )
+        from app.models.notifications import Notification, NotificationType
+
+        await Notification.create(
+            user_id=record.patient_id,
+            notification_type=NotificationType.GUIDE_COMPLETED,
+            title="AI 가이드 완료",
+            body="복약 및 생활습관 가이드가 생성되었습니다.",
+        )
 
     except Exception as e:
         await Guide.filter(id=guide_id).update(
