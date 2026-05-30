@@ -96,9 +96,19 @@ export const userApi = {
     api.get<PatientSearchResult[]>("/users/patients/search", { params: { q } }),
 };
 
+// ── Pagination ─────────────────────────────────────
+export interface PaginatedResponse<T> {
+  items: T[];
+  total: number;
+  page: number;
+  size: number;
+  pages: number;
+}
+
 // ── Records ────────────────────────────────────────
 export const recordApi = {
-  list: () => api.get<MedicalRecord[]>("/records"),
+  list: (page = 1, size = 20) =>
+    api.get<PaginatedResponse<MedicalRecord>>("/records", { params: { page, size } }),
   get: (id: number) => api.get<MedicalRecord>(`/records/${id}`),
   create: (data: {
     patient_id: number;

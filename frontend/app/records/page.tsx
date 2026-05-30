@@ -22,7 +22,7 @@ export default function RecordsPage() {
   useEffect(() => {
     if (!getToken()) { router.push("/login"); return; }
     recordApi.list()
-      .then(({ data }) => setRecords(data))
+      .then(({ data }) => setRecords(data.items))
       .catch(() => toast.error("진료 기록을 불러오지 못했어요."))
       .finally(() => setLoading(false));
   }, [router]);
