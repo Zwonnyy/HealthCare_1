@@ -128,3 +128,132 @@ export const recordApi = {
 export const guideApi = {
   get: (id: number) => api.get<Guide>(`/guides/${id}`),
 };
+
+// ── Message Types ──────────────────────────────────
+export interface Message {
+  id: number;
+  sender_id: number;
+  receiver_id: number;
+  record_id: number | null;
+  content: string;
+  is_read: boolean;
+  read_at: string | null;
+  created_at: string;
+}
+
+// ── Health Log Types ───────────────────────────────
+export type Mood = "GREAT" | "GOOD" | "NORMAL" | "BAD" | "TERRIBLE";
+export type AnalysisStatus = "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+
+export interface HealthLog {
+  id: number;
+  patient_id: number;
+  record_id: number | null;
+  log_date: string;
+  pain_score: number;
+  mood: Mood;
+  symptoms_text: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HealthLogAnalysis {
+  id: number;
+  patient_id: number;
+  record_id: number | null;
+  analysis_text: string | null;
+  status: AnalysisStatus;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Notification Types ─────────────────────────────
+export type NotificationType =
+  | "MESSAGE_RECEIVED"
+  | "RECORD_CREATED"
+  | "GUIDE_COMPLETED"
+  | "ANALYSIS_COMPLETED";
+
+export interface Notification {
+  id: number;
+  user_id: number;
+  notification_type: NotificationType;
+  title: string;
+  body: string;
+  is_read: boolean;
+  read_at: string | null;
+  created_at: string;
+}
+
+// ── Stats Types ────────────────────────────────────
+export interface PatientStats {
+  total_records: number;
+  unread_messages: number;
+  health_log_stats: {
+    total: number;
+    avg_pain_score_7d: number | null;
+    avg_pain_score_30d: number | null;
+    pain_trend_14d: { date: string; avg_pain_score: number }[];
+  };
+  mood_distribution_30d: {
+    GREAT: number;
+    GOOD: number;
+    NORMAL: number;
+    BAD: number;
+    TERRIBLE: number;
+  };
+}
+
+export interface DoctorStats {
+  total_patients: number;
+  total_records: number;
+  records_last_30d: number;
+  unread_messages: number;
+  pending_guides: number;
+}
+
+// ── Messages API ───────────────────────────────────
+export const messageApi = {
+  send: (data: { receiver_id: number; record_id?: number; content: string }) =>
+    api.post<Message>("/messages", data),
+  inbox: (page = 1, size = 20) =>
+    api.get<PaginatedResponse<Message>>("/messages/inbox", { params: { page, size } }),
+  sent: (page = 1, size = 20) =>
+    api.get<PaginatedResponse<Message>>("/messages/sent", { params: { page, size } }),
+  unreadCount: () => api.get<{ unread_count: number }>("/messages/unread-count"),
+  get: (id: number) => api.get<Message>(`/messages/${id}`),
+};
+
+// ── Health Logs API ────────────────────────────────
+export const healthLogApi = {
+  list: (page = 1, size = 20) =>
+    api.get<PaginatedResponse<HealthLog>>("/health-logs", { params: { page, size } }),
+  create: (data: {
+    record_id?: number;
+    log_date: string;
+    pain_score: number;
+    mood: Mood;
+    symptoms_text: string;
+    notes?: string;
+  }) => api.post<HealthLog>("/health-logs", data),
+  delete: (id: number) => api.delete(`/health-logs/${id}`),
+  requestAnalysis: (record_id?: number) =>
+    api.post<HealthLogAnalysis>("/health-logs/analyze", { record_id }),
+};
+
+// ── Notifications API ──────────────────────────────
+export const notificationApi = {
+  list: (page = 1, size = 20) =>
+    api.get<PaginatedResponse<Notification>>("/notifications", { params: { page, size } }),
+  unreadCount: () => api.get<{ count: number }>("/notifications/unread-count"),
+  markRead: (id: number) => api.patch(`/notifications/${id}/read`),
+  markAllRead: () => api.patch("/notifications/read-all"),
+};
+
+// ── Stats API ──────────────────────────────────────
+export const statsApi = {
+  patient: () => api.get<PatientStats>("/stats/patient"),
+  doctor: () => api.get<DoctorStats>("/stats/doctor"),
+};
