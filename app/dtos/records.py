@@ -32,6 +32,12 @@ class PrescriptionResponse(BaseSerializerModel):
     instructions: str | None
 
 
+class MedicalRecordUpdateRequest(BaseModel):
+    diagnosis: str | None = None
+    symptoms: str | None = None
+    notes: str | None = None
+
+
 class MedicalRecordResponse(BaseModel):
     id: int
     patient_id: int

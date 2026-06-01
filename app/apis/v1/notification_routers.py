@@ -1,12 +1,16 @@
+import asyncio
+import json
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import ORJSONResponse as Response
+from fastapi.responses import StreamingResponse
 
 from app.dependencies.security import get_request_user
 from app.dtos.notifications import NotificationResponse, UnreadCountResponse
 from app.dtos.pagination import PaginatedResponse, PaginationParams
 from app.models.users import User
+from app.services.jwt import JwtService
 from app.services.notifications import NotificationService
 
 notification_router = APIRouter(prefix="/notifications", tags=["notifications"])
@@ -54,3 +58,28 @@ async def mark_all_as_read(
     service: Annotated[NotificationService, Depends(NotificationService)],
 ) -> None:
     await service.mark_all_as_read(user=user)
+
+
+@notification_router.get("/stream")
+async def notification_stream(
+    token: Annotated[str, Query(...)],
+    service: Annotated[NotificationService, Depends(NotificationService)],
+) -> StreamingResponse:
+    jwt_service = JwtService()
+    access_token = jwt_service.verify_jwt(token, "access")
+    user_id = access_token["user_id"]
+
+    async def event_generator():
+        while True:
+            try:
+                count = await service.get_unread_count_by_id(user_id=user_id)
+                yield f"data: {json.dumps({'count': count})}\n\n"
+            except Exception:
+                break
+            await asyncio.sleep(10)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

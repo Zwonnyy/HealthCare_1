@@ -63,6 +63,11 @@ class UserRepository:
             Q(role=UserRole.PATIENT) & Q(Q(name__icontains=q) | Q(email__icontains=q))
         ).limit(10)
 
+    async def search_doctors(self, q: str) -> list[User]:
+        return await self._model.filter(
+            Q(role=UserRole.DOCTOR) & Q(Q(name__icontains=q) | Q(email__icontains=q))
+        ).limit(10)
+
     async def update_instance(self, user: User, data: dict[str, Any]) -> None:
         update_fields = []
         for key, value in data.items():

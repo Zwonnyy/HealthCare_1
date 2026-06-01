@@ -30,6 +30,9 @@ class NotificationService:
     async def mark_all_as_read(self, user: User) -> None:
         await self.repo.mark_all_as_read(user.id)
 
+    async def get_unread_count_by_id(self, user_id: int) -> int:
+        return await self.repo.count_unread(user_id)
+
     async def notify(self, user_id: int, notification_type: NotificationType, title: str, body: str) -> None:
         await self.repo.create_notification(
             user_id=user_id,

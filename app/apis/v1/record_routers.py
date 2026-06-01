@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import ORJSONResponse as Response
 from fastapi.responses import StreamingResponse
 
@@ -9,7 +9,12 @@ from app.dtos.guides import GuideResponse
 from app.dtos.health_logs import HealthLogResponse
 from app.dtos.messages import MessageResponse
 from app.dtos.pagination import PaginatedResponse, PaginationParams
-from app.dtos.records import MedicalRecordCreateRequest, MedicalRecordResponse, PrescriptionResponse
+from app.dtos.records import (
+    MedicalRecordCreateRequest,
+    MedicalRecordResponse,
+    MedicalRecordUpdateRequest,
+    PrescriptionResponse,
+)
 from app.models.users import User
 from app.services.guides import GuideService
 from app.services.health_logs import HealthLogService
@@ -46,8 +51,9 @@ async def get_records(
     user: Annotated[User, Depends(get_request_user)],
     record_service: Annotated[MedicalRecordService, Depends(MedicalRecordService)],
     pagination: Annotated[PaginationParams, Depends()],
+    q: Annotated[str | None, Query(description="진단명 검색")] = None,
 ) -> Response:
-    records, total = await record_service.get_records(user=user, offset=pagination.offset, limit=pagination.size)
+    records, total = await record_service.get_records(user=user, offset=pagination.offset, limit=pagination.size, q=q)
     items = []
     for record in records:
         prescriptions = await record.prescriptions.all()
@@ -68,6 +74,29 @@ async def get_records(
         PaginatedResponse.create(items=items, total=total, page=pagination.page, size=pagination.size).model_dump(),
         status_code=status.HTTP_200_OK,
     )
+
+
+@record_router.patch("/{record_id}", response_model=MedicalRecordResponse, status_code=status.HTTP_200_OK)
+async def update_record(
+    record_id: int,
+    request: MedicalRecordUpdateRequest,
+    doctor: Annotated[User, Depends(get_doctor_user)],
+    record_service: Annotated[MedicalRecordService, Depends(MedicalRecordService)],
+) -> Response:
+    record = await record_service.update_record(doctor=doctor, record_id=record_id, data=request)
+    prescriptions = await record.prescriptions.all()
+    data = MedicalRecordResponse(
+        id=record.id,
+        patient_id=record.patient_id,
+        doctor_id=record.doctor_id,
+        diagnosis=record.diagnosis,
+        symptoms=record.symptoms,
+        notes=record.notes,
+        visited_at=record.visited_at,
+        created_at=record.created_at,
+        prescriptions=[PrescriptionResponse.model_validate(p) for p in prescriptions],
+    )
+    return Response(data.model_dump(), status_code=status.HTTP_200_OK)
 
 
 @record_router.get("/{record_id}", response_model=MedicalRecordResponse, status_code=status.HTTP_200_OK)

@@ -3,8 +3,8 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import ORJSONResponse as Response
 
-from app.dependencies.security import get_doctor_user, get_request_user
-from app.dtos.users import PatientSearchResult, UserInfoResponse, UserUpdateRequest
+from app.dependencies.security import get_doctor_user, get_patient_user, get_request_user
+from app.dtos.users import DoctorSearchResult, PatientSearchResult, UserInfoResponse, UserUpdateRequest
 from app.models.users import User
 from app.repositories.user_repository import UserRepository
 from app.services.users import UserManageService
@@ -38,5 +38,18 @@ async def search_patients(
     patients = await user_repo.search_patients(q)
     return Response(
         [PatientSearchResult.model_validate(p).model_dump() for p in patients],
+        status_code=status.HTTP_200_OK,
+    )
+
+
+@user_router.get("/doctors/search", response_model=list[DoctorSearchResult], status_code=status.HTTP_200_OK)
+async def search_doctors(
+    q: Annotated[str, Query(min_length=1)],
+    _: Annotated[User, Depends(get_patient_user)],
+    user_repo: Annotated[UserRepository, Depends(UserRepository)],
+) -> Response:
+    doctors = await user_repo.search_doctors(q)
+    return Response(
+        [DoctorSearchResult.model_validate(d).model_dump() for d in doctors],
         status_code=status.HTTP_200_OK,
     )

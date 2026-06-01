@@ -2,7 +2,7 @@ from fastapi import HTTPException
 from starlette import status
 from tortoise.transactions import in_transaction
 
-from app.dtos.records import MedicalRecordCreateRequest
+from app.dtos.records import MedicalRecordCreateRequest, MedicalRecordUpdateRequest
 from app.models.notifications import NotificationType
 from app.models.records import MedicalRecord
 from app.models.users import User, UserRole
@@ -42,13 +42,21 @@ class MedicalRecordService:
         )
         return record
 
-    async def get_records(self, user: User, offset: int = 0, limit: int = 20) -> tuple[list[MedicalRecord], int]:
-        if user.role == UserRole.DOCTOR:
-            items = await self.record_repo.get_doctor_records(user.id, offset=offset, limit=limit)
-            total = await self.record_repo.count_doctor_records(user.id)
+    async def get_records(self, user: User, offset: int = 0, limit: int = 20, q: str | None = None) -> tuple[list[MedicalRecord], int]:
+        if q:
+            if user.role == UserRole.DOCTOR:
+                items = await self.record_repo.search_doctor_records(user.id, q, offset=offset, limit=limit)
+                total = await self.record_repo.count_search_doctor_records(user.id, q)
+            else:
+                items = await self.record_repo.search_patient_records(user.id, q, offset=offset, limit=limit)
+                total = await self.record_repo.count_search_patient_records(user.id, q)
         else:
-            items = await self.record_repo.get_patient_records(user.id, offset=offset, limit=limit)
-            total = await self.record_repo.count_patient_records(user.id)
+            if user.role == UserRole.DOCTOR:
+                items = await self.record_repo.get_doctor_records(user.id, offset=offset, limit=limit)
+                total = await self.record_repo.count_doctor_records(user.id)
+            else:
+                items = await self.record_repo.get_patient_records(user.id, offset=offset, limit=limit)
+                total = await self.record_repo.count_patient_records(user.id)
         return items, total
 
     async def get_record(self, user: User, record_id: int) -> MedicalRecord:
@@ -60,3 +68,11 @@ class MedicalRecordService:
         if user.role == UserRole.PATIENT and record.patient_id != user.id:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="접근 권한이 없습니다.")
         return record
+
+    async def update_record(self, doctor: User, record_id: int, data: MedicalRecordUpdateRequest) -> MedicalRecord:
+        record = await self.record_repo.get_record(record_id)
+        if not record:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="진료 기록을 찾을 수 없습니다.")
+        if record.doctor_id != doctor.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="접근 권한이 없습니다.")
+        return await self.record_repo.update_record(record, data.model_dump(exclude_none=True))

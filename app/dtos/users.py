@@ -28,6 +28,8 @@ class UserUpdateRequest(BaseModel):
         Gender | None,
         Field(None, description="'MALE' or 'FEMALE'"),
     ]
+    current_password: str | None = None
+    new_password: Annotated[str | None, Field(None, min_length=8)] = None
 
 
 class UserInfoResponse(BaseSerializerModel):
@@ -42,6 +44,12 @@ class UserInfoResponse(BaseSerializerModel):
 
 
 class PatientSearchResult(BaseSerializerModel):
+    id: int
+    name: str
+    email: str
+
+
+class DoctorSearchResult(BaseSerializerModel):
     id: int
     name: str
     email: str

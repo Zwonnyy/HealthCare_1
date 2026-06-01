@@ -89,11 +89,39 @@ export interface PatientSearchResult {
   email: string;
 }
 
+export interface DoctorSearchResult {
+  id: number;
+  name: string;
+  email: string;
+}
+
+export interface UserInfo {
+  id: number;
+  name: string;
+  email: string;
+  phone_number: string;
+  birthday: string;
+  gender: "MALE" | "FEMALE";
+  role: UserRole;
+  created_at: string;
+}
+
 // ── Users ──────────────────────────────────────────
 export const userApi = {
-  me: () => api.get<User>("/users/me"),
+  me: () => api.get<UserInfo>("/users/me"),
+  updateMe: (data: {
+    name?: string;
+    email?: string;
+    phone_number?: string;
+    birthday?: string;
+    gender?: "MALE" | "FEMALE";
+    current_password?: string;
+    new_password?: string;
+  }) => api.patch<UserInfo>("/users/me", data),
   searchPatients: (q: string) =>
     api.get<PatientSearchResult[]>("/users/patients/search", { params: { q } }),
+  searchDoctors: (q: string) =>
+    api.get<DoctorSearchResult[]>("/users/doctors/search", { params: { q } }),
 };
 
 // ── Pagination ─────────────────────────────────────
@@ -107,8 +135,8 @@ export interface PaginatedResponse<T> {
 
 // ── Records ────────────────────────────────────────
 export const recordApi = {
-  list: (page = 1, size = 20) =>
-    api.get<PaginatedResponse<MedicalRecord>>("/records", { params: { page, size } }),
+  list: (page = 1, size = 20, q?: string) =>
+    api.get<PaginatedResponse<MedicalRecord>>("/records", { params: { page, size, ...(q ? { q } : {}) } }),
   get: (id: number) => api.get<MedicalRecord>(`/records/${id}`),
   create: (data: {
     patient_id: number;
@@ -118,6 +146,8 @@ export const recordApi = {
     visited_at: string;
     prescriptions: Omit<Prescription, "id">[];
   }) => api.post<MedicalRecord>("/records", data),
+  update: (id: number, data: { diagnosis?: string; symptoms?: string; notes?: string }) =>
+    api.patch<MedicalRecord>(`/records/${id}`, data),
   requestGuide: (recordId: number) =>
     api.post<Guide>(`/records/${recordId}/guides`),
   getGuides: (recordId: number) =>
@@ -241,6 +271,8 @@ export const healthLogApi = {
   delete: (id: number) => api.delete(`/health-logs/${id}`),
   requestAnalysis: (record_id?: number) =>
     api.post<HealthLogAnalysis>("/health-logs/analyze", { record_id }),
+  getAnalysis: (analysis_id: number) =>
+    api.get<HealthLogAnalysis>(`/health-logs/analyses/${analysis_id}`),
 };
 
 // ── Notifications API ──────────────────────────────

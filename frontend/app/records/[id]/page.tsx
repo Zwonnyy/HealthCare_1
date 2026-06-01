@@ -5,6 +5,9 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import Navbar from "@/components/Navbar";
 import { recordApi, MedicalRecord, Guide } from "@/lib/api";
 import { getToken, getUser } from "@/lib/auth";
@@ -24,15 +27,23 @@ export default function RecordDetailPage() {
   const [guides, setGuides] = useState<Guide[]>([]);
   const [requesting, setRequesting] = useState(false);
 
+  const [showEdit, setShowEdit] = useState(false);
+  const [editForm, setEditForm] = useState({ diagnosis: "", symptoms: "", notes: "" });
+  const [saving, setSaving] = useState(false);
+
   const loadGuides = useCallback(() => {
     recordApi.getGuides(Number(id)).then(({ data }) => setGuides(data));
   }, [id]);
 
   useEffect(() => {
-    setUser(getUser());
+    const u = getUser();
+    setUser(u);
     if (!getToken()) { router.push("/login"); return; }
     recordApi.get(Number(id))
-      .then(({ data }) => setRecord(data))
+      .then(({ data }) => {
+        setRecord(data);
+        setEditForm({ diagnosis: data.diagnosis, symptoms: data.symptoms, notes: data.notes ?? "" });
+      })
       .catch(() => { toast.error("기록을 찾을 수 없어요."); router.push("/records"); });
     loadGuides();
   }, [id, router, loadGuides]);
@@ -57,62 +68,87 @@ export default function RecordDetailPage() {
     }
   }
 
+  async function handleSaveEdit() {
+    setSaving(true);
+    try {
+      const updated = await recordApi.update(Number(id), {
+        diagnosis: editForm.diagnosis.trim() || undefined,
+        symptoms: editForm.symptoms.trim() || undefined,
+        notes: editForm.notes.trim() || undefined,
+      });
+      setRecord(updated.data);
+      setShowEdit(false);
+      toast.success("진료 기록을 수정했어요.");
+    } catch {
+      toast.error("수정에 실패했어요.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (!record) {
     return (
-      <div className="min-h-screen bg-zinc-50">
+      <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
         <Navbar />
         <div className="max-w-3xl mx-auto px-4 py-16 space-y-3">
-          {[1, 2, 3].map((i) => <div key={i} className="h-20 rounded-xl bg-zinc-200 animate-pulse" />)}
+          {[1, 2, 3].map((i) => <div key={i} className="h-20 rounded-xl bg-zinc-200 dark:bg-zinc-800 animate-pulse" />)}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
       <Navbar />
       <main className="max-w-3xl mx-auto px-4 py-10 space-y-6">
 
-        {/* 뒤로 가기 */}
-        <Link href="/records" className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800 transition-colors">
+        <Link href="/records" className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">
           ← 진료 기록 목록
         </Link>
 
-        {/* 진료 정보 카드 */}
-        <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm overflow-hidden">
+        <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 shadow-sm overflow-hidden">
           <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-5 text-white">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-blue-100 text-xs mb-1">진단명</p>
                 <h1 className="text-2xl font-bold">{record.diagnosis}</h1>
               </div>
-              <Badge className="bg-white/20 text-white border-0 text-xs">
-                {new Date(record.visited_at).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
-              </Badge>
+              <div className="flex items-center gap-2">
+                {user?.role === "DOCTOR" && (
+                  <button
+                    onClick={() => setShowEdit(true)}
+                    className="text-xs bg-white/20 hover:bg-white/30 px-3 py-1 rounded-lg transition-colors"
+                  >
+                    ✏️ 수정
+                  </button>
+                )}
+                <Badge className="bg-white/20 text-white border-0 text-xs">
+                  {new Date(record.visited_at).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}
+                </Badge>
+              </div>
             </div>
           </div>
 
           <div className="p-6 space-y-5">
             <div>
               <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">주요 증상</p>
-              <p className="text-zinc-700">{record.symptoms}</p>
+              <p className="text-zinc-700 dark:text-zinc-300">{record.symptoms}</p>
             </div>
             {record.notes && (
               <div>
                 <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-2">의사 메모</p>
-                <p className="text-zinc-700 bg-zinc-50 rounded-lg p-3 text-sm">{record.notes}</p>
+                <p className="text-zinc-700 dark:text-zinc-300 bg-zinc-50 dark:bg-zinc-700 rounded-lg p-3 text-sm">{record.notes}</p>
               </div>
             )}
 
-            {/* 처방 약물 */}
             <div>
               <p className="text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-3">처방 약물</p>
               <div className="grid gap-2">
                 {record.prescriptions.map((p) => (
-                  <div key={p.id} className="flex items-center justify-between rounded-lg border border-zinc-100 px-4 py-3">
+                  <div key={p.id} className="flex items-center justify-between rounded-lg border border-zinc-100 dark:border-zinc-700 px-4 py-3">
                     <div>
-                      <span className="font-medium text-zinc-800">{p.medication_name}</span>
-                      <span className="ml-2 text-xs bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">{p.dosage}</span>
+                      <span className="font-medium text-zinc-800 dark:text-zinc-200">{p.medication_name}</span>
+                      <span className="ml-2 text-xs bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full">{p.dosage}</span>
                     </div>
                     <div className="text-right text-xs text-zinc-400">
                       <p>{p.frequency}</p>
@@ -125,12 +161,11 @@ export default function RecordDetailPage() {
           </div>
         </div>
 
-        {/* AI 가이드 섹션 */}
-        <div className="bg-white rounded-2xl border border-zinc-100 shadow-sm p-6">
+        <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
             <div>
-              <h2 className="text-lg font-bold text-zinc-900">AI 복약 가이드</h2>
-              <p className="text-xs text-zinc-400 mt-0.5">Claude AI가 생성하는 맞춤 복약 안내</p>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">AI 복약 가이드</h2>
+              <p className="text-xs text-zinc-400 mt-0.5">AI가 생성하는 맞춤 복약 안내</p>
             </div>
             {user?.role === "PATIENT" && (
               <Button
@@ -159,8 +194,8 @@ export default function RecordDetailPage() {
                 const s = statusConfig[g.status];
                 return (
                   <div key={g.id} className={`rounded-xl border px-4 py-4 flex items-center justify-between ${
-                    g.status === "GENERATING" ? "border-amber-200 bg-amber-50/50" :
-                    g.status === "COMPLETED"  ? "border-emerald-100" : "border-zinc-100"
+                    g.status === "GENERATING" ? "border-amber-200 bg-amber-50/50 dark:bg-amber-900/10" :
+                    g.status === "COMPLETED"  ? "border-emerald-100 dark:border-emerald-800" : "border-zinc-100 dark:border-zinc-700"
                   }`}>
                     <div className="flex items-center gap-3">
                       <span className="text-xl">{s.icon}</span>
@@ -190,6 +225,48 @@ export default function RecordDetailPage() {
           )}
         </div>
       </main>
+
+      {showEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-xl w-full max-w-lg p-6">
+            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">진료 기록 수정</h2>
+            <div className="space-y-4">
+              <div>
+                <Label className="mb-1.5">진단명</Label>
+                <Input
+                  value={editForm.diagnosis}
+                  onChange={(e) => setEditForm({ ...editForm, diagnosis: e.target.value })}
+                  className="dark:bg-zinc-700 dark:border-zinc-600"
+                />
+              </div>
+              <div>
+                <Label className="mb-1.5">주요 증상</Label>
+                <Textarea
+                  value={editForm.symptoms}
+                  onChange={(e) => setEditForm({ ...editForm, symptoms: e.target.value })}
+                  className="min-h-20 dark:bg-zinc-700 dark:border-zinc-600"
+                />
+              </div>
+              <div>
+                <Label className="mb-1.5">의사 메모 (선택)</Label>
+                <Textarea
+                  value={editForm.notes}
+                  onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                  className="min-h-16 dark:bg-zinc-700 dark:border-zinc-600"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2 mt-6">
+              <Button variant="outline" className="flex-1" onClick={() => setShowEdit(false)}>
+                취소
+              </Button>
+              <Button className="flex-1 bg-blue-700 hover:bg-blue-800" onClick={handleSaveEdit} disabled={saving}>
+                {saving ? "저장 중…" : "저장"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

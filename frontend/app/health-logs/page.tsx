@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import Navbar from "@/components/Navbar";
-import { healthLogApi, HealthLog, Mood } from "@/lib/api";
+import PaginationBar from "@/components/PaginationBar";
+import { healthLogApi, HealthLog, HealthLogAnalysis, Mood, PaginatedResponse } from "@/lib/api";
 import { getToken, getUser } from "@/lib/auth";
 
 const MOOD_OPTIONS: { value: Mood; label: string; emoji: string }[] = [
@@ -27,11 +28,19 @@ function moodLabel(mood: Mood) {
   return MOOD_OPTIONS.find((m) => m.value === mood)?.label ?? mood;
 }
 
+const ANALYSIS_STATUS: Record<string, { label: string; color: string }> = {
+  PENDING:    { label: "대기 중",   color: "text-zinc-500" },
+  PROCESSING: { label: "분석 중…", color: "text-amber-500" },
+  COMPLETED:  { label: "완료",      color: "text-emerald-600" },
+  FAILED:     { label: "실패",      color: "text-red-500" },
+};
+
 export default function HealthLogsPage() {
   const router = useRouter();
   const user = getUser();
 
-  const [logs, setLogs] = useState<HealthLog[]>([]);
+  const [data, setData] = useState<PaginatedResponse<HealthLog> | null>(null);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
 
   const [showModal, setShowModal] = useState(false);
@@ -45,15 +54,17 @@ export default function HealthLogsPage() {
   });
 
   const [analyzing, setAnalyzing] = useState(false);
+  const [analysis, setAnalysis] = useState<HealthLogAnalysis | null>(null);
+  const [showAnalysis, setShowAnalysis] = useState(false);
 
   const loadLogs = useCallback(() => {
     setLoading(true);
     healthLogApi
-      .list()
-      .then(({ data }) => setLogs(data.items))
+      .list(page, 10)
+      .then(({ data: res }) => setData(res))
       .catch(() => toast.error("건강 일지를 불러오지 못했어요."))
       .finally(() => setLoading(false));
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     if (!getToken()) { router.replace("/login"); return; }
@@ -74,13 +85,8 @@ export default function HealthLogsPage() {
       });
       toast.success("건강 일지를 저장했어요.");
       setShowModal(false);
-      setForm({
-        log_date: new Date().toISOString().slice(0, 10),
-        pain_score: 5,
-        mood: "NORMAL",
-        symptoms_text: "",
-        notes: "",
-      });
+      setForm({ log_date: new Date().toISOString().slice(0, 10), pain_score: 5, mood: "NORMAL", symptoms_text: "", notes: "" });
+      setPage(1);
       loadLogs();
     } catch {
       toast.error("저장에 실패했어요.");
@@ -94,7 +100,7 @@ export default function HealthLogsPage() {
     try {
       await healthLogApi.delete(id);
       toast.success("삭제됐어요.");
-      setLogs((prev) => prev.filter((l) => l.id !== id));
+      loadLogs();
     } catch {
       toast.error("삭제에 실패했어요.");
     }
@@ -102,9 +108,15 @@ export default function HealthLogsPage() {
 
   async function handleAnalyze() {
     setAnalyzing(true);
+    setAnalysis(null);
     try {
-      await healthLogApi.requestAnalysis();
-      toast.success("AI 분석을 요청했어요. 완료되면 알림을 드려요.");
+      const { data: res } = await healthLogApi.requestAnalysis();
+      setAnalysis(res);
+      setShowAnalysis(true);
+      toast.success("AI 분석을 요청했어요.");
+      if (res.status !== "COMPLETED") {
+        pollAnalysis(res.id);
+      }
     } catch {
       toast.error("분석 요청에 실패했어요.");
     } finally {
@@ -112,44 +124,84 @@ export default function HealthLogsPage() {
     }
   }
 
+  function pollAnalysis(id: number) {
+    const interval = setInterval(async () => {
+      try {
+        const { data: res } = await healthLogApi.getAnalysis(id);
+        setAnalysis(res);
+        if (res.status === "COMPLETED" || res.status === "FAILED") {
+          clearInterval(interval);
+        }
+      } catch {
+        clearInterval(interval);
+      }
+    }, 3000);
+  }
+
   function painColor(score: number) {
-    if (score <= 3) return "text-green-600";
+    if (score <= 3) return "text-green-600 dark:text-green-400";
     if (score <= 6) return "text-amber-500";
     return "text-red-500";
   }
 
+  const logs = data?.items ?? [];
+
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
       <Navbar />
       <main className="max-w-3xl mx-auto px-4 py-10">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold text-zinc-900">건강 일지</h1>
-            <p className="text-sm text-zinc-500 mt-1">
-              매일 컨디션을 기록하고 AI 분석을 받아보세요.
-            </p>
+            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">건강 일지</h1>
+            <p className="text-sm text-zinc-500 mt-1">매일 컨디션을 기록하고 AI 분석을 받아보세요.</p>
           </div>
           <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={handleAnalyze}
-              disabled={analyzing}
-            >
+            <Button variant="outline" onClick={handleAnalyze} disabled={analyzing} className="dark:border-zinc-700 dark:text-zinc-300">
               {analyzing ? "요청 중…" : "📊 AI 분석 요청"}
             </Button>
-            <Button
-              className="bg-blue-700 hover:bg-blue-800"
-              onClick={() => setShowModal(true)}
-            >
+            <Button className="bg-blue-700 hover:bg-blue-800" onClick={() => setShowModal(true)}>
               + 기록 추가
             </Button>
           </div>
         </div>
 
+        {showAnalysis && analysis && (
+          <div className={`mb-6 rounded-xl border p-5 ${
+            analysis.status === "COMPLETED" ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/10" :
+            analysis.status === "FAILED" ? "border-red-200 bg-red-50" :
+            "border-amber-200 bg-amber-50 dark:bg-amber-900/10"
+          }`}>
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📊</span>
+                <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">AI 건강 분석 결과</span>
+                <span className={`text-xs font-medium ${ANALYSIS_STATUS[analysis.status]?.color}`}>
+                  {ANALYSIS_STATUS[analysis.status]?.label}
+                </span>
+                {(analysis.status === "PENDING" || analysis.status === "PROCESSING") && (
+                  <span className="text-xs text-zinc-400 animate-pulse">자동 갱신 중</span>
+                )}
+              </div>
+              <button onClick={() => setShowAnalysis(false)} className="text-xs text-zinc-400 hover:text-zinc-600">닫기</button>
+            </div>
+            {analysis.status === "COMPLETED" && analysis.analysis_text && (
+              <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                {analysis.analysis_text}
+              </p>
+            )}
+            {analysis.status === "FAILED" && (
+              <p className="text-sm text-red-600">{analysis.error_message ?? "분석에 실패했어요."}</p>
+            )}
+            {(analysis.status === "PENDING" || analysis.status === "PROCESSING") && (
+              <p className="text-sm text-zinc-500">AI가 건강 일지를 분석하고 있어요. 잠시 기다려주세요.</p>
+            )}
+          </div>
+        )}
+
         {loading && (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="h-24 rounded-xl bg-zinc-200 animate-pulse" />
+              <div key={i} className="h-24 rounded-xl bg-zinc-200 dark:bg-zinc-800 animate-pulse" />
             ))}
           </div>
         )}
@@ -158,10 +210,7 @@ export default function HealthLogsPage() {
           <div className="text-center py-20 text-zinc-400">
             <p className="text-5xl mb-4">📓</p>
             <p className="text-lg font-medium">건강 일지가 없어요</p>
-            <Button
-              className="mt-4 bg-blue-700 hover:bg-blue-800"
-              onClick={() => setShowModal(true)}
-            >
+            <Button className="mt-4 bg-blue-700 hover:bg-blue-800" onClick={() => setShowModal(true)}>
               첫 기록 작성하기
             </Button>
           </div>
@@ -169,15 +218,12 @@ export default function HealthLogsPage() {
 
         <div className="space-y-3">
           {logs.map((log) => (
-            <div
-              key={log.id}
-              className="bg-white border border-zinc-100 rounded-xl p-5"
-            >
+            <div key={log.id} className="bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-xl p-5">
               <div className="flex items-start justify-between">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
                     <span className="text-xl">{moodEmoji(log.mood)}</span>
-                    <span className="text-sm font-medium text-zinc-700">{moodLabel(log.mood)}</span>
+                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">{moodLabel(log.mood)}</span>
                     <Badge variant="secondary" className="text-xs">{log.log_date}</Badge>
                   </div>
                   <div className="flex items-center gap-3">
@@ -185,7 +231,7 @@ export default function HealthLogsPage() {
                       통증 {log.pain_score}/10
                     </span>
                   </div>
-                  <p className="text-sm text-zinc-600 line-clamp-2 mt-1">{log.symptoms_text}</p>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-400 line-clamp-2 mt-1">{log.symptoms_text}</p>
                   {log.notes && (
                     <p className="text-xs text-zinc-400 line-clamp-1">메모: {log.notes}</p>
                   )}
@@ -201,10 +247,12 @@ export default function HealthLogsPage() {
           ))}
         </div>
 
+        {data && <PaginationBar page={data.page} pages={data.pages} onPageChange={setPage} />}
+
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
-              <h2 className="text-lg font-bold text-zinc-900 mb-4">건강 일지 기록</h2>
+            <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-xl w-full max-w-md p-6 max-h-[90vh] overflow-y-auto">
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-4">건강 일지 기록</h2>
 
               <div className="space-y-4">
                 <div>
@@ -213,6 +261,7 @@ export default function HealthLogsPage() {
                     type="date"
                     value={form.log_date}
                     onChange={(e) => setForm({ ...form, log_date: e.target.value })}
+                    className="dark:bg-zinc-700 dark:border-zinc-600"
                   />
                 </div>
 
@@ -242,8 +291,8 @@ export default function HealthLogsPage() {
                         onClick={() => setForm({ ...form, mood: m.value })}
                         className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm border transition-colors ${
                           form.mood === m.value
-                            ? "border-blue-500 bg-blue-50 text-blue-700"
-                            : "border-zinc-200 text-zinc-600 hover:border-zinc-300"
+                            ? "border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                            : "border-zinc-200 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300"
                         }`}
                       >
                         {m.emoji} {m.label}
@@ -258,7 +307,7 @@ export default function HealthLogsPage() {
                     placeholder="오늘의 증상을 기록해주세요"
                     value={form.symptoms_text}
                     onChange={(e) => setForm({ ...form, symptoms_text: e.target.value })}
-                    className="min-h-20"
+                    className="min-h-20 dark:bg-zinc-700 dark:border-zinc-600"
                   />
                 </div>
 
@@ -268,24 +317,14 @@ export default function HealthLogsPage() {
                     placeholder="추가 메모"
                     value={form.notes}
                     onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                    className="min-h-16"
+                    className="min-h-16 dark:bg-zinc-700 dark:border-zinc-600"
                   />
                 </div>
               </div>
 
               <div className="flex gap-2 mt-6">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setShowModal(false)}
-                >
-                  취소
-                </Button>
-                <Button
-                  className="flex-1 bg-blue-700 hover:bg-blue-800"
-                  onClick={handleCreate}
-                  disabled={submitting}
-                >
+                <Button variant="outline" className="flex-1" onClick={() => setShowModal(false)}>취소</Button>
+                <Button className="flex-1 bg-blue-700 hover:bg-blue-800" onClick={handleCreate} disabled={submitting}>
                   {submitting ? "저장 중…" : "저장"}
                 </Button>
               </div>
