@@ -13,6 +13,9 @@ AI 기반 의료 정보 서비스입니다. 의사가 진료 기록과 처방전
 | **AI 가이드 스트리밍** | Gemini AI가 복약 안내·생활습관 가이드를 실시간 스트리밍으로 생성 |
 | **메시지 채널** | 의사-환자 간 진료 기반 메시지 주고받기 |
 | **JWT 인증** | Access Token + Redis 기반 Refresh Token (로그아웃 시 즉시 무효화) |
+| **페이지네이션** | 진료기록·건강일지·메시지 목록 오프셋 기반 페이지네이션 |
+| **통계/대시보드** | 역할별 대시보드 — 통증 추이, 기분 분포, 진료 통계 |
+| **알림 센터** | 새 메시지·진료기록·AI 가이드 완료 시 자동 인앱 알림 생성 |
 
 ---
 
@@ -24,7 +27,7 @@ AI Worker : Celery + Google Gemini API
 Scheduler : Celery Beat (매일 복약 알림)
 Cache     : Redis (Celery 브로커 + Refresh Token 저장)
 Email     : Gmail SMTP (aiosmtplib)
-Frontend  : Next.js
+Frontend  : Next.js 16 + Tailwind CSS + shadcn/ui
 Infra     : Docker Compose + Nginx + AWS EC2
 ```
 
@@ -41,13 +44,16 @@ Infra     : Docker Compose + Nginx + AWS EC2
 │   │   ├── guide_routers.py    # AI 가이드 조회
 │   │   ├── health_log_routers.py # 건강 일지 CRUD + AI 분석
 │   │   ├── message_routers.py  # 메시지 채널
+│   │   ├── notification_routers.py # 알림 센터
+│   │   ├── stats_routers.py    # 통계/대시보드
 │   │   └── user_routers.py     # 유저 정보
 │   ├── models/                 # DB 모델
 │   │   ├── users.py            # User (DOCTOR / PATIENT)
 │   │   ├── records.py          # MedicalRecord, Prescription
 │   │   ├── guides.py           # Guide (AI 가이드)
 │   │   ├── health_logs.py      # HealthLog, HealthLogAnalysis
-│   │   └── messages.py         # Message
+│   │   ├── messages.py         # Message
+│   │   └── notifications.py    # Notification
 │   ├── core/
 │   │   ├── jwt/                # JWT 발급·검증
 │   │   └── redis.py            # async Redis 클라이언트
@@ -109,6 +115,7 @@ docker-compose up -d --build
 
 | 서비스 | 주소 |
 |--------|------|
+| 프론트엔드 (Next.js) | http://localhost:3000 |
 | API Swagger | http://localhost/api/docs |
 | API ReDoc | http://localhost/api/redoc |
 
@@ -174,6 +181,22 @@ uv run celery -A ai_worker.main beat --loglevel=info
 | GET | `/messages/sent` | 보낸 메시지함 | 의사·환자 |
 | GET | `/messages/unread-count` | 안 읽은 메시지 수 | 의사·환자 |
 | GET | `/messages/{id}` | 상세 조회 + 자동 읽음 처리 | 의사·환자 |
+
+### 알림 `/api/v1/notifications`
+
+| Method | Path | 설명 | 권한 |
+|--------|------|------|------|
+| GET | `/notifications` | 내 알림 목록 (페이지네이션) | 의사·환자 |
+| GET | `/notifications/unread-count` | 미읽은 알림 수 | 의사·환자 |
+| PATCH | `/notifications/{id}/read` | 개별 읽음 처리 | 의사·환자 |
+| PATCH | `/notifications/read-all` | 전체 읽음 처리 | 의사·환자 |
+
+### 통계/대시보드 `/api/v1/stats`
+
+| Method | Path | 설명 | 권한 |
+|--------|------|------|------|
+| GET | `/stats/patient` | 환자 대시보드 통계 | 환자 |
+| GET | `/stats/doctor` | 의사 대시보드 통계 | 의사 |
 
 ---
 
