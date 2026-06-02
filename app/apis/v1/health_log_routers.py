@@ -54,6 +54,17 @@ async def get_my_health_logs(
     )
 
 
+@health_log_router.get("/trend", response_model=list[TrendPoint], status_code=status.HTTP_200_OK)
+async def get_health_trend(
+    patient: Annotated[User, Depends(get_patient_user)],
+    days: int = 30,
+) -> Response:
+    since = date.today() - timedelta(days=days)
+    logs = await HealthLog.filter(patient_id=patient.id, log_date__gte=since).order_by("log_date")
+    points = [TrendPoint(date=str(log.log_date), pain_score=float(log.pain_score), mood=log.mood) for log in logs]
+    return Response([p.model_dump() for p in points], status_code=status.HTTP_200_OK)
+
+
 @health_log_router.get("/{log_id}", response_model=HealthLogResponse, status_code=status.HTTP_200_OK)
 async def get_health_log(
     log_id: int,
@@ -71,17 +82,6 @@ async def delete_health_log(
     service: Annotated[HealthLogService, Depends(HealthLogService)],
 ) -> None:
     await service.delete_log(user=patient, log_id=log_id)
-
-
-@health_log_router.get("/trend", response_model=list[TrendPoint], status_code=status.HTTP_200_OK)
-async def get_health_trend(
-    patient: Annotated[User, Depends(get_patient_user)],
-    days: int = 30,
-) -> Response:
-    since = date.today() - timedelta(days=days)
-    logs = await HealthLog.filter(patient_id=patient.id, log_date__gte=since).order_by("log_date")
-    points = [TrendPoint(date=str(log.log_date), pain_score=float(log.pain_score), mood=log.mood) for log in logs]
-    return Response([p.model_dump() for p in points], status_code=status.HTTP_200_OK)
 
 
 @health_log_router.post("/analyze", response_model=HealthLogAnalysisResponse, status_code=status.HTTP_202_ACCEPTED)
