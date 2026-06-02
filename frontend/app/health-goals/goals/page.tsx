@@ -2,11 +2,12 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Navbar from "@/components/Navbar";
-import { healthGoalApi, HealthGoal, GoalType } from "@/lib/api";
+import { healthGoalApi, HealthGoal, HealthGoalHistoryPoint, GoalType } from "@/lib/api";
 import { getToken, getUser } from "@/lib/auth";
 
 const GOAL_TYPE_OPTIONS: { value: GoalType; label: string; emoji: string; defaultUnit: string }[] = [
@@ -48,6 +49,10 @@ export default function HealthGoalsPage() {
 
   const [updatingId, setUpdatingId] = useState<number | null>(null);
   const [newValue, setNewValue] = useState<Record<number, string>>({});
+
+  const [chartGoalId, setChartGoalId] = useState<number | null>(null);
+  const [chartData, setChartData] = useState<HealthGoalHistoryPoint[]>([]);
+  const [chartLoading, setChartLoading] = useState(false);
 
   const load = useCallback(() => {
     healthGoalApi.list()
@@ -115,6 +120,19 @@ export default function HealthGoalsPage() {
     }
   }
 
+  async function handleOpenChart(goal: HealthGoal) {
+    setChartGoalId(goal.id);
+    setChartLoading(true);
+    try {
+      const { data } = await healthGoalApi.history(goal.id);
+      setChartData(data);
+    } catch {
+      toast.error("차트 데이터를 불러오지 못했어요.");
+    } finally {
+      setChartLoading(false);
+    }
+  }
+
   async function handleDelete(id: number) {
     if (!confirm("목표를 삭제할까요?")) return;
     try {
@@ -176,7 +194,9 @@ export default function HealthGoalsPage() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 items-center">
+                      <button onClick={() => handleOpenChart(goal)} className="text-xs text-blue-500 dark:text-blue-400 hover:underline">📈 추이</button>
+                      <span className="text-zinc-300 dark:text-zinc-600">·</span>
                       <button onClick={() => handleAchieve(goal)} className="text-xs text-emerald-600 dark:text-emerald-400 hover:underline">달성</button>
                       <span className="text-zinc-300 dark:text-zinc-600">·</span>
                       <button onClick={() => handleDelete(goal.id)} className="text-xs text-zinc-400 hover:text-red-500">삭제</button>
@@ -238,6 +258,72 @@ export default function HealthGoalsPage() {
                 </div>
               );
             })}
+          </div>
+        )}
+
+        {chartGoalId !== null && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="bg-white dark:bg-zinc-800 rounded-2xl shadow-xl w-full max-w-lg p-6">
+              {(() => {
+                const goal = goals.find((g) => g.id === chartGoalId);
+                const opt = GOAL_TYPE_OPTIONS.find((o) => o.value === goal?.goal_type);
+                return (
+                  <>
+                    <div className="flex items-center justify-between mb-4">
+                      <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                        {opt?.emoji} {goal?.title} 추이
+                      </h2>
+                      <button
+                        onClick={() => { setChartGoalId(null); setChartData([]); }}
+                        className="text-zinc-400 hover:text-zinc-600 text-xl leading-none"
+                      >×</button>
+                    </div>
+
+                    {chartLoading ? (
+                      <div className="h-48 flex items-center justify-center text-zinc-400 text-sm animate-pulse">차트 불러오는 중...</div>
+                    ) : chartData.length === 0 ? (
+                      <div className="h-48 flex flex-col items-center justify-center text-zinc-400">
+                        <p className="text-3xl mb-2">📊</p>
+                        <p className="text-sm">아직 기록된 수치가 없어요.</p>
+                        <p className="text-xs mt-1">현재값을 업데이트하면 차트에 표시돼요.</p>
+                      </div>
+                    ) : (
+                      <div className="h-56">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <LineChart data={chartData.map((p) => ({
+                            date: new Date(p.recorded_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric" }),
+                            value: p.recorded_value,
+                          }))}>
+                            <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="#94a3b8" />
+                            <YAxis tick={{ fontSize: 11 }} stroke="#94a3b8" domain={["auto", "auto"]} />
+                            <Tooltip
+                              formatter={(v) => [`${v} ${goal?.unit}`, "수치"]}
+                              contentStyle={{ fontSize: 12, borderRadius: 8 }}
+                            />
+                            {goal && (
+                              <ReferenceLine
+                                y={goal.target_value}
+                                stroke="#3b82f6"
+                                strokeDasharray="4 2"
+                                label={{ value: `목표 ${goal.target_value}${goal.unit}`, fontSize: 10, fill: "#3b82f6", position: "insideTopRight" }}
+                              />
+                            )}
+                            <Line
+                              type="monotone"
+                              dataKey="value"
+                              stroke="#10b981"
+                              strokeWidth={2}
+                              dot={{ r: 4, fill: "#10b981" }}
+                              activeDot={{ r: 6 }}
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
           </div>
         )}
 

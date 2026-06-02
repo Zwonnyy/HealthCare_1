@@ -72,6 +72,7 @@ export default function Navbar() {
             {navLink("/appointments", "예약")}
             {user.role === "PATIENT" && navLink("/health-logs", "건강일지")}
             {user.role === "PATIENT" && navLink("/health-goals/goals", "건강목표")}
+            {user.role === "PATIENT" && navLink("/health-reports", "건강리포트")}
             {user.role === "PATIENT" && navLink("/chat", "AI 채팅")}
 
             {user.role === "DOCTOR" && (

@@ -6,6 +6,12 @@ from app.dtos.base import BaseSerializerModel
 from app.models.health_goals import GoalType
 
 
+class HealthGoalHistoryResponse(BaseSerializerModel):
+    id: int
+    recorded_value: float
+    recorded_at: datetime
+
+
 class HealthGoalCreateRequest(BaseModel):
     goal_type: GoalType
     title: str

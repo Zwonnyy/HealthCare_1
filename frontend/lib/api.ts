@@ -358,6 +358,12 @@ export interface HealthGoal {
   updated_at: string;
 }
 
+export interface HealthGoalHistoryPoint {
+  id: number;
+  recorded_value: number;
+  recorded_at: string;
+}
+
 export const healthGoalApi = {
   list: () => api.get<HealthGoal[]>("/health-goals/goals"),
   create: (data: { goal_type: GoalType; title: string; target_value: number; unit: string; deadline?: string }) =>
@@ -365,6 +371,27 @@ export const healthGoalApi = {
   update: (id: number, data: { current_value?: number; achieved?: boolean }) =>
     api.patch<HealthGoal>(`/health-goals/goals/${id}`, data),
   delete: (id: number) => api.delete(`/health-goals/goals/${id}`),
+  history: (goalId: number) => api.get<HealthGoalHistoryPoint[]>(`/health-goals/goals/${goalId}/history`),
+};
+
+// ── Health Report Types ─────────────────────────────
+export type ReportStatus = "PENDING" | "COMPLETED" | "FAILED";
+
+export interface HealthReport {
+  id: number;
+  patient_id: number;
+  year: number;
+  month: number;
+  report_text: string | null;
+  status: ReportStatus;
+  error_message: string | null;
+  created_at: string;
+}
+
+export const healthReportApi = {
+  generate: (year: number, month: number) =>
+    api.post<HealthReport>(`/health-reports/generate?year=${year}&month=${month}`),
+  list: () => api.get<HealthReport[]>("/health-reports"),
 };
 
 // ── Drug Interaction Types ──────────────────────────

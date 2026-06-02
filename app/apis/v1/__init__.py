@@ -4,6 +4,7 @@ from app.apis.v1.appointment_routers import appointment_router
 from app.apis.v1.auth_routers import auth_router
 from app.apis.v1.chat_routers import chat_router
 from app.apis.v1.drug_interaction_routers import drug_interaction_router
+from app.apis.v1.health_report_routers import health_report_router
 from app.apis.v1.guide_routers import guide_router
 from app.apis.v1.health_goal_routers import health_goal_router
 from app.apis.v1.health_log_routers import health_log_router
@@ -28,3 +29,4 @@ v1_routers.include_router(stats_router)
 v1_routers.include_router(appointment_router)
 v1_routers.include_router(medication_check_router)
 v1_routers.include_router(chat_router)
+v1_routers.include_router(health_report_router)
