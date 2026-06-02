@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import Navbar from "@/components/Navbar";
-import { recordApi, medicationCheckApi, MedicalRecord, Guide, TodayMedication } from "@/lib/api";
+import { recordApi, medicationCheckApi, drugInteractionApi, MedicalRecord, Guide, TodayMedication, DrugInteraction } from "@/lib/api";
 import { getToken, getUser } from "@/lib/auth";
 
 const statusConfig: Record<string, { label: string; color: string; icon: string }> = {
@@ -34,6 +34,9 @@ export default function RecordDetailPage() {
   const [todayMeds, setTodayMeds] = useState<TodayMedication[]>([]);
   const [togglingId, setTogglingId] = useState<number | null>(null);
 
+  const [interaction, setInteraction] = useState<DrugInteraction | null>(null);
+  const [checkingInteraction, setCheckingInteraction] = useState(false);
+
   const loadGuides = useCallback(() => {
     recordApi.getGuides(Number(id)).then(({ data }) => setGuides(data));
   }, [id]);
@@ -52,6 +55,7 @@ export default function RecordDetailPage() {
     if (getUser()?.role === "PATIENT") {
       medicationCheckApi.today().then(({ data }) => setTodayMeds(data)).catch(() => {});
     }
+    drugInteractionApi.getLatest(Number(id)).then(({ data }) => setInteraction(data)).catch(() => {});
   }, [id, router, loadGuides]);
 
   useEffect(() => {
@@ -85,6 +89,20 @@ export default function RecordDetailPage() {
       toast.error("체크 처리에 실패했어요.");
     } finally {
       setTogglingId(null);
+    }
+  }
+
+  async function handleCheckInteraction() {
+    setCheckingInteraction(true);
+    try {
+      const { data } = await drugInteractionApi.check(Number(id));
+      setInteraction(data);
+      if (data.has_warning) toast.warning("⚠️ 약물 상호작용 경고가 있어요. 결과를 확인하세요.");
+      else toast.success("약물 상호작용 분석이 완료됐어요.");
+    } catch {
+      toast.error("분석 요청에 실패했어요.");
+    } finally {
+      setCheckingInteraction(false);
     }
   }
 
@@ -221,6 +239,51 @@ export default function RecordDetailPage() {
             </div>
           </div>
         )}
+
+        <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 shadow-sm p-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">약물 상호작용 분석</h2>
+              <p className="text-xs text-zinc-400 mt-0.5">AI가 처방 약물 간 위험한 상호작용을 분석해요.</p>
+            </div>
+            <Button
+              onClick={handleCheckInteraction}
+              disabled={checkingInteraction}
+              size="sm"
+              variant="outline"
+              className="border-amber-300 text-amber-700 hover:bg-amber-50 dark:border-amber-700 dark:text-amber-400 dark:hover:bg-amber-900/20"
+            >
+              {checkingInteraction ? "분석 중..." : "⚡ 상호작용 검사"}
+            </Button>
+          </div>
+
+          {!interaction ? (
+            <div className="text-center py-8 text-zinc-400">
+              <p className="text-3xl mb-2">💊</p>
+              <p className="text-sm">위 버튼을 눌러 약물 상호작용을 분석하세요.</p>
+            </div>
+          ) : interaction.status === "FAILED" ? (
+            <div className="rounded-xl border border-red-100 dark:border-red-900 bg-red-50 dark:bg-red-900/10 p-4 text-sm text-red-600 dark:text-red-400">
+              분석에 실패했어요. 다시 시도해주세요.
+            </div>
+          ) : (
+            <div className={`rounded-xl border p-4 ${
+              interaction.has_warning
+                ? "border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/10"
+                : "border-emerald-100 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/10"
+            }`}>
+              <p className={`text-xs font-semibold mb-2 ${interaction.has_warning ? "text-amber-700 dark:text-amber-400" : "text-emerald-700 dark:text-emerald-400"}`}>
+                {interaction.has_warning ? "⚠️ 주의사항이 있습니다" : "✅ 주요 상호작용 없음"}
+              </p>
+              <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                {interaction.result_text}
+              </p>
+              <p className="text-xs text-zinc-400 mt-3">
+                분석 시각: {new Date(interaction.created_at).toLocaleString("ko-KR")}
+              </p>
+            </div>
+          )}
+        </div>
 
         <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">

@@ -340,3 +340,45 @@ export interface TrendPoint {
 export const healthTrendApi = {
   get: (days = 30) => api.get<TrendPoint[]>("/health-logs/trend", { params: { days } }),
 };
+
+// ── Health Goal Types ───────────────────────────────
+export type GoalType = "WEIGHT" | "BLOOD_PRESSURE" | "EXERCISE_DAYS" | "PAIN_SCORE" | "CUSTOM";
+
+export interface HealthGoal {
+  id: number;
+  patient_id: number;
+  goal_type: GoalType;
+  title: string;
+  target_value: number;
+  current_value: number | null;
+  unit: string;
+  deadline: string | null;
+  achieved: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export const healthGoalApi = {
+  list: () => api.get<HealthGoal[]>("/health-goals/goals"),
+  create: (data: { goal_type: GoalType; title: string; target_value: number; unit: string; deadline?: string }) =>
+    api.post<HealthGoal>("/health-goals/goals", data),
+  update: (id: number, data: { current_value?: number; achieved?: boolean }) =>
+    api.patch<HealthGoal>(`/health-goals/goals/${id}`, data),
+  delete: (id: number) => api.delete(`/health-goals/goals/${id}`),
+};
+
+// ── Drug Interaction Types ──────────────────────────
+export interface DrugInteraction {
+  id: number;
+  record_id: number;
+  status: "PENDING" | "COMPLETED" | "FAILED";
+  result_text: string | null;
+  has_warning: boolean;
+  error_message: string | null;
+  created_at: string;
+}
+
+export const drugInteractionApi = {
+  check: (recordId: number) => api.post<DrugInteraction>(`/records/${recordId}/interactions`),
+  getLatest: (recordId: number) => api.get<DrugInteraction | null>(`/records/${recordId}/interactions`),
+};
