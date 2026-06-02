@@ -44,7 +44,8 @@ export default function ChatPage() {
 
     try {
       const token = getToken();
-      const response = await fetch(`${api.defaults.baseURL}/chat/stream`, {
+      const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+      const response = await fetch(`${baseUrl}/api/v1/chat/stream`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

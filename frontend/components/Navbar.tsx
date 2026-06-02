@@ -26,7 +26,8 @@ export default function Navbar() {
     const token = getToken();
     if (!token) return;
 
-    const es = new EventSource(`http://localhost:8000/api/v1/notifications/stream?token=${token}`);
+    const baseUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+    const es = new EventSource(`${baseUrl}/api/v1/notifications/stream?token=${token}`);
     es.onmessage = (e) => {
       try {
         const data = JSON.parse(e.data);
