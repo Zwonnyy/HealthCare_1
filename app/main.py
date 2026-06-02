@@ -18,5 +18,4 @@ app.add_middleware(
 )
 
 initialize_tortoise(app)
-
 app.include_router(v1_routers)

@@ -54,6 +54,7 @@ async def _send_medication_reminders() -> None:
         sent_count = 0
         for patient_id, (patient, prescriptions) in patient_prescriptions.items():
             try:
+                await _send_in_app_notification(patient_id=patient_id, prescriptions=prescriptions)
                 await _send_reminder_email(patient=patient, prescriptions=prescriptions)
                 sent_count += 1
                 logger.info("복약 알림 발송 완료: %s (%s)", patient.name, patient.email)
@@ -64,6 +65,20 @@ async def _send_medication_reminders() -> None:
 
     finally:
         await Tortoise.close_connections()
+
+
+async def _send_in_app_notification(patient_id: int, prescriptions: list["Prescription"]) -> None:
+    from app.models.notifications import Notification, NotificationType
+
+    med_names = ", ".join(p.medication_name for p in prescriptions[:3])
+    if len(prescriptions) > 3:
+        med_names += f" 외 {len(prescriptions) - 3}개"
+    await Notification.create(
+        user_id=patient_id,
+        notification_type=NotificationType.MEDICATION_REMINDER,
+        title="오늘 복약 알림",
+        body=f"오늘 복용할 약물: {med_names}",
+    )
 
 
 async def _send_reminder_email(patient: "User", prescriptions: list["Prescription"]) -> None:

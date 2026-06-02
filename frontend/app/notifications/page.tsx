@@ -13,6 +13,9 @@ const TYPE_ICON: Record<NotificationType, string> = {
   RECORD_CREATED: "📋",
   GUIDE_COMPLETED: "✨",
   ANALYSIS_COMPLETED: "📊",
+  APPOINTMENT_REQUESTED: "📅",
+  APPOINTMENT_CONFIRMED: "✅",
+  MEDICATION_REMINDER: "💊",
 };
 
 export default function NotificationsPage() {

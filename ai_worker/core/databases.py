@@ -7,6 +7,8 @@ TORTOISE_APP_MODELS = [
     "app.models.health_logs",
     "app.models.messages",
     "app.models.notifications",
+    "app.models.appointments",
+    "app.models.medication_checks",
 ]
 
 TORTOISE_ORM = {

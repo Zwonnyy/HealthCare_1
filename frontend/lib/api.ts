@@ -204,7 +204,10 @@ export type NotificationType =
   | "MESSAGE_RECEIVED"
   | "RECORD_CREATED"
   | "GUIDE_COMPLETED"
-  | "ANALYSIS_COMPLETED";
+  | "ANALYSIS_COMPLETED"
+  | "APPOINTMENT_REQUESTED"
+  | "APPOINTMENT_CONFIRMED"
+  | "MEDICATION_REMINDER";
 
 export interface Notification {
   id: number;
@@ -288,4 +291,52 @@ export const notificationApi = {
 export const statsApi = {
   patient: () => api.get<PatientStats>("/stats/patient"),
   doctor: () => api.get<DoctorStats>("/stats/doctor"),
+};
+
+// ── Appointment Types ───────────────────────────────
+export type AppointmentStatus = "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+
+export interface Appointment {
+  id: number;
+  patient_id: number;
+  doctor_id: number;
+  requested_at: string;
+  status: AppointmentStatus;
+  patient_notes: string | null;
+  doctor_notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const appointmentApi = {
+  create: (data: { doctor_id: number; requested_at: string; patient_notes?: string }) =>
+    api.post<Appointment>("/appointments", data),
+  list: (page = 1, size = 10) =>
+    api.get<PaginatedResponse<Appointment>>("/appointments", { params: { page, size } }),
+  updateStatus: (id: number, data: { status: AppointmentStatus; doctor_notes?: string }) =>
+    api.patch<Appointment>(`/appointments/${id}`, data),
+  cancel: (id: number) => api.delete(`/appointments/${id}`),
+};
+
+// ── Medication Check Types ──────────────────────────
+export interface TodayMedication {
+  prescription: Prescription;
+  checked: boolean;
+}
+
+export const medicationCheckApi = {
+  today: () => api.get<TodayMedication[]>("/medication-checks/today"),
+  toggle: (prescriptionId: number) =>
+    api.post<{ checked: boolean }>(`/medication-checks/${prescriptionId}/toggle`),
+};
+
+// ── Health Trend ────────────────────────────────────
+export interface TrendPoint {
+  date: string;
+  pain_score: number;
+  mood: string;
+}
+
+export const healthTrendApi = {
+  get: (days = 30) => api.get<TrendPoint[]>("/health-logs/trend", { params: { days } }),
 };

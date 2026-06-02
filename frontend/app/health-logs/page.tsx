@@ -7,9 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
 import Navbar from "@/components/Navbar";
 import PaginationBar from "@/components/PaginationBar";
-import { healthLogApi, HealthLog, HealthLogAnalysis, Mood, PaginatedResponse } from "@/lib/api";
+import { healthLogApi, healthTrendApi, HealthLog, HealthLogAnalysis, Mood, PaginatedResponse, TrendPoint } from "@/lib/api";
 import { getToken, getUser } from "@/lib/auth";
 
 const MOOD_OPTIONS: { value: Mood; label: string; emoji: string }[] = [
@@ -57,6 +60,9 @@ export default function HealthLogsPage() {
   const [analysis, setAnalysis] = useState<HealthLogAnalysis | null>(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
 
+  const [trendData, setTrendData] = useState<TrendPoint[]>([]);
+  const [showTrend, setShowTrend] = useState(true);
+
   const loadLogs = useCallback(() => {
     setLoading(true);
     healthLogApi
@@ -70,6 +76,7 @@ export default function HealthLogsPage() {
     if (!getToken()) { router.replace("/login"); return; }
     if (user?.role !== "PATIENT") { router.replace("/records"); return; }
     loadLogs();
+    healthTrendApi.get(30).then(({ data }) => setTrendData(data)).catch(() => {});
   }, [router, loadLogs]);
 
   async function handleCreate() {
@@ -164,6 +171,32 @@ export default function HealthLogsPage() {
             </Button>
           </div>
         </div>
+
+        {trendData.length > 0 && (
+          <div className="mb-6 bg-white dark:bg-zinc-800 rounded-xl border border-zinc-100 dark:border-zinc-700 p-5">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">📈 최근 30일 통증 추이</h2>
+              <button onClick={() => setShowTrend(!showTrend)} className="text-xs text-zinc-400 hover:text-zinc-600">
+                {showTrend ? "접기" : "펼치기"}
+              </button>
+            </div>
+            {showTrend && (
+              <ResponsiveContainer width="100%" height={180}>
+                <LineChart data={trendData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e4e4e7" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} tickFormatter={(v) => v.slice(5)} />
+                  <YAxis domain={[0, 10]} tick={{ fontSize: 10 }} />
+                  <Tooltip
+                    labelFormatter={(l) => l}
+                    formatter={(v) => [`${v}/10`, "통증"]}
+                    contentStyle={{ fontSize: 12 }}
+                  />
+                  <Line type="monotone" dataKey="pain_score" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} name="통증 점수" />
+                </LineChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        )}
 
         {showAnalysis && analysis && (
           <div className={`mb-6 rounded-xl border p-5 ${

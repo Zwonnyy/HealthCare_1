@@ -1,7 +1,9 @@
+from datetime import date, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, status
 from fastapi.responses import ORJSONResponse as Response
+from pydantic import BaseModel
 
 from app.dependencies.security import get_patient_user, get_request_user
 from app.dtos.health_logs import (
@@ -11,8 +13,15 @@ from app.dtos.health_logs import (
     HealthLogResponse,
 )
 from app.dtos.pagination import PaginatedResponse, PaginationParams
+from app.models.health_logs import HealthLog
 from app.models.users import User
 from app.services.health_logs import HealthLogService
+
+
+class TrendPoint(BaseModel):
+    date: str
+    pain_score: float
+    mood: str
 
 health_log_router = APIRouter(prefix="/health-logs", tags=["health-logs"])
 
@@ -62,6 +71,17 @@ async def delete_health_log(
     service: Annotated[HealthLogService, Depends(HealthLogService)],
 ) -> None:
     await service.delete_log(user=patient, log_id=log_id)
+
+
+@health_log_router.get("/trend", response_model=list[TrendPoint], status_code=status.HTTP_200_OK)
+async def get_health_trend(
+    patient: Annotated[User, Depends(get_patient_user)],
+    days: int = 30,
+) -> Response:
+    since = date.today() - timedelta(days=days)
+    logs = await HealthLog.filter(patient_id=patient.id, log_date__gte=since).order_by("log_date")
+    points = [TrendPoint(date=str(log.log_date), pain_score=float(log.pain_score), mood=log.mood) for log in logs]
+    return Response([p.model_dump() for p in points], status_code=status.HTTP_200_OK)
 
 
 @health_log_router.post("/analyze", response_model=HealthLogAnalysisResponse, status_code=status.HTTP_202_ACCEPTED)

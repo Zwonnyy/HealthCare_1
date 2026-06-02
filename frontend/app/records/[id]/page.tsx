@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import Navbar from "@/components/Navbar";
-import { recordApi, MedicalRecord, Guide } from "@/lib/api";
+import { recordApi, medicationCheckApi, MedicalRecord, Guide, TodayMedication } from "@/lib/api";
 import { getToken, getUser } from "@/lib/auth";
 
 const statusConfig: Record<string, { label: string; color: string; icon: string }> = {
@@ -31,6 +31,9 @@ export default function RecordDetailPage() {
   const [editForm, setEditForm] = useState({ diagnosis: "", symptoms: "", notes: "" });
   const [saving, setSaving] = useState(false);
 
+  const [todayMeds, setTodayMeds] = useState<TodayMedication[]>([]);
+  const [togglingId, setTogglingId] = useState<number | null>(null);
+
   const loadGuides = useCallback(() => {
     recordApi.getGuides(Number(id)).then(({ data }) => setGuides(data));
   }, [id]);
@@ -46,6 +49,9 @@ export default function RecordDetailPage() {
       })
       .catch(() => { toast.error("기록을 찾을 수 없어요."); router.push("/records"); });
     loadGuides();
+    if (getUser()?.role === "PATIENT") {
+      medicationCheckApi.today().then(({ data }) => setTodayMeds(data)).catch(() => {});
+    }
   }, [id, router, loadGuides]);
 
   useEffect(() => {
@@ -65,6 +71,20 @@ export default function RecordDetailPage() {
       toast.error("요청에 실패했어요.");
     } finally {
       setRequesting(false);
+    }
+  }
+
+  async function handleToggleMed(prescriptionId: number) {
+    setTogglingId(prescriptionId);
+    try {
+      const { data } = await medicationCheckApi.toggle(prescriptionId);
+      setTodayMeds((prev) =>
+        prev.map((m) => m.prescription.id === prescriptionId ? { ...m, checked: data.checked } : m)
+      );
+    } catch {
+      toast.error("체크 처리에 실패했어요.");
+    } finally {
+      setTogglingId(null);
     }
   }
 
@@ -102,9 +122,17 @@ export default function RecordDetailPage() {
       <Navbar />
       <main className="max-w-3xl mx-auto px-4 py-10 space-y-6">
 
-        <Link href="/records" className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">
-          ← 진료 기록 목록
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link href="/records" className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors">
+            ← 진료 기록 목록
+          </Link>
+          <button
+            onClick={() => window.print()}
+            className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 flex items-center gap-1 transition-colors"
+          >
+            🖨️ PDF 출력
+          </button>
+        </div>
 
         <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 shadow-sm overflow-hidden">
           <div className="bg-gradient-to-r from-blue-600 to-blue-500 px-6 py-5 text-white">
@@ -160,6 +188,39 @@ export default function RecordDetailPage() {
             </div>
           </div>
         </div>
+
+        {user?.role === "PATIENT" && todayMeds.length > 0 && (
+          <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 shadow-sm p-6">
+            <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100 mb-1">오늘의 복약 체크</h2>
+            <p className="text-xs text-zinc-400 mb-4">복용한 약에 체크하세요.</p>
+            <div className="space-y-2">
+              {todayMeds.map((item) => (
+                <button
+                  key={item.prescription.id}
+                  onClick={() => handleToggleMed(item.prescription.id)}
+                  disabled={togglingId === item.prescription.id}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border transition-all text-left ${
+                    item.checked
+                      ? "border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/10"
+                      : "border-zinc-100 dark:border-zinc-700 hover:border-zinc-200 dark:hover:border-zinc-600"
+                  }`}
+                >
+                  <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                    item.checked ? "border-emerald-500 bg-emerald-500" : "border-zinc-300 dark:border-zinc-600"
+                  }`}>
+                    {item.checked && <span className="text-white text-xs">✓</span>}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <span className={`font-medium text-sm ${item.checked ? "line-through text-zinc-400" : "text-zinc-800 dark:text-zinc-200"}`}>
+                      {item.prescription.medication_name}
+                    </span>
+                    <span className="ml-2 text-xs text-zinc-400">{item.prescription.dosage} · {item.prescription.frequency}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 shadow-sm p-6">
           <div className="flex items-center justify-between mb-5">
