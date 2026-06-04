@@ -13,8 +13,11 @@ from app.apis.v1.message_routers import message_router
 from app.apis.v1.notification_routers import notification_router
 from app.apis.v1.rag_routers import rag_router
 from app.apis.v1.record_routers import record_router
+from app.apis.v1.reminder_routers import reminder_router
 from app.apis.v1.stats_routers import stats_router
+from app.apis.v1.symptom_check_routers import symptom_check_router
 from app.apis.v1.user_routers import user_router
+from app.apis.v1.vital_routers import vital_router
 
 v1_routers = APIRouter(prefix="/api/v1")
 v1_routers.include_router(auth_router)
@@ -32,3 +35,6 @@ v1_routers.include_router(medication_check_router)
 v1_routers.include_router(chat_router)
 v1_routers.include_router(health_report_router)
 v1_routers.include_router(rag_router)
+v1_routers.include_router(vital_router)
+v1_routers.include_router(symptom_check_router)
+v1_routers.include_router(reminder_router)

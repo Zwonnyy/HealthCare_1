@@ -18,6 +18,9 @@ TORTOISE_APP_MODELS = [
     "app.models.health_goal_history",
     "app.models.drug_interactions",
     "app.models.health_reports",
+    "app.models.vitals",
+    "app.models.symptom_checks",
+    "app.models.medication_reminders",
 ]
 
 TORTOISE_ORM = {

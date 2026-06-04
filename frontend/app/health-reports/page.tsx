@@ -148,6 +148,31 @@ export default function HealthReportsPage() {
                     <div className="pt-4 prose prose-sm dark:prose-invert max-w-none text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap leading-relaxed text-sm">
                       {report.report_text}
                     </div>
+                    <button
+                      onClick={() => {
+                        const win = window.open("", "_blank");
+                        if (!win) return;
+                        win.document.write(`<!DOCTYPE html><html lang="ko"><head>
+                          <meta charset="UTF-8"><title>${report.year}년 ${report.month}월 건강 리포트</title>
+                          <style>
+                            body{font-family:'Apple SD Gothic Neo',sans-serif;max-width:700px;margin:40px auto;padding:0 24px;color:#1a1a1a;line-height:1.8}
+                            h1{color:#1d4ed8;border-bottom:2px solid #1d4ed8;padding-bottom:8px}
+                            h2,h3{color:#374151}
+                            pre{white-space:pre-wrap;word-break:break-word}
+                            @media print{@page{margin:20mm}}
+                          </style>
+                        </head><body>
+                          <h1>${report.year}년 ${report.month}월 건강 리포트</h1>
+                          <pre>${(report.report_text ?? "").replace(/</g,"&lt;")}</pre>
+                          <p style="color:#9ca3af;font-size:12px;margin-top:40px">생성일: ${new Date(report.created_at).toLocaleString("ko-KR")}</p>
+                        </body></html>`);
+                        win.document.close();
+                        win.print();
+                      }}
+                      className="mt-4 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      📄 PDF로 저장하기
+                    </button>
                   </div>
                 )}
 

@@ -9,6 +9,9 @@ TORTOISE_APP_MODELS = [
     "app.models.notifications",
     "app.models.appointments",
     "app.models.medication_checks",
+    "app.models.medication_reminders",
+    "app.models.vitals",
+    "app.models.symptom_checks",
 ]
 
 TORTOISE_ORM = {

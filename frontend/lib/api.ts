@@ -409,3 +409,64 @@ export const drugInteractionApi = {
   check: (recordId: number) => api.post<DrugInteraction>(`/records/${recordId}/interactions`),
   getLatest: (recordId: number) => api.get<DrugInteraction | null>(`/records/${recordId}/interactions`),
 };
+
+// ── Vitals Types ────────────────────────────────────
+export interface VitalRecord {
+  id: number;
+  patient_id: number;
+  systolic: number | null;
+  diastolic: number | null;
+  blood_sugar: number | null;
+  weight: number | null;
+  heart_rate: number | null;
+  notes: string | null;
+  alert_message: string | null;
+  recorded_at: string;
+}
+
+export const vitalApi = {
+  record: (data: {
+    systolic?: number;
+    diastolic?: number;
+    blood_sugar?: number;
+    weight?: number;
+    heart_rate?: number;
+    notes?: string;
+  }) => api.post<VitalRecord>("/vitals", data),
+  list: (limit = 20) => api.get<VitalRecord[]>("/vitals", { params: { limit } }),
+};
+
+// ── Symptom Check Types ─────────────────────────────
+export type UrgencyLevel = "LOW" | "MEDIUM" | "HIGH";
+
+export interface SymptomCheck {
+  id: number;
+  symptom_text: string;
+  ai_assessment: string | null;
+  urgency: UrgencyLevel | null;
+  suggest_appointment: boolean;
+  created_at: string;
+}
+
+export const symptomCheckApi = {
+  check: (symptom_text: string) => api.post<SymptomCheck>("/symptom-check", { symptom_text }),
+  list: () => api.get<SymptomCheck[]>("/symptom-check"),
+};
+
+// ── Medication Reminder Types ───────────────────────
+export interface MedicationReminder {
+  id: number;
+  patient_id: number;
+  name: string;
+  reminder_time: string;
+  enabled: boolean;
+  created_at: string;
+}
+
+export const reminderApi = {
+  list: () => api.get<MedicationReminder[]>("/reminders"),
+  create: (data: { name: string; reminder_time: string }) => api.post<MedicationReminder>("/reminders", data),
+  update: (id: number, data: { enabled?: boolean; reminder_time?: string; name?: string }) =>
+    api.patch<MedicationReminder>(`/reminders/${id}`, data),
+  delete: (id: number) => api.delete(`/reminders/${id}`),
+};

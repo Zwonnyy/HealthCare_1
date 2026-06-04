@@ -11,6 +11,7 @@ celery_app = Celery(
         "ai_worker.tasks.generate_guide",
         "ai_worker.tasks.send_medication_reminder",
         "ai_worker.tasks.analyze_health_logs",
+        "ai_worker.tasks.check_medication_reminders",
     ],
 )
 
@@ -23,8 +24,11 @@ celery_app.conf.update(
     beat_schedule={
         "send-medication-reminder-daily": {
             "task": "send_medication_reminder",
-            # 매일 오전 8시 (Asia/Seoul)
             "schedule": crontab(hour=8, minute=0),
+        },
+        "check-medication-reminders-minutely": {
+            "task": "check_medication_reminders",
+            "schedule": crontab(),  # 매 분
         },
     },
 )
