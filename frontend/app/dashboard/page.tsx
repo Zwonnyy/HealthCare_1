@@ -2,9 +2,21 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import {
+  LineChart, Line, BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+} from "recharts";
 import Navbar from "@/components/Navbar";
 import { statsApi, PatientStats, DoctorStats } from "@/lib/api";
 import { getToken, getUser } from "@/lib/auth";
+
+const MOOD_COLOR: Record<string, string> = {
+  GREAT: "#22c55e",
+  GOOD: "#86efac",
+  NORMAL: "#94a3b8",
+  BAD: "#f97316",
+  TERRIBLE: "#ef4444",
+};
 
 const MOOD_EMOJI: Record<string, string> = {
   GREAT: "😄",
@@ -62,30 +74,39 @@ export default function DashboardPage() {
     }
   }, [router]);
 
-  function renderMoodBar(dist: PatientStats["mood_distribution_30d"]) {
+  function renderMoodChart(dist: PatientStats["mood_distribution_30d"]) {
     const moods = ["GREAT", "GOOD", "NORMAL", "BAD", "TERRIBLE"] as const;
     const total = moods.reduce((s, m) => s + dist[m], 0);
     if (total === 0) return <p className="text-sm text-zinc-400">최근 30일 기록 없음</p>;
-
+    const data = moods.map((m) => ({ name: MOOD_EMOJI[m], label: MOOD_LABEL[m], count: dist[m], key: m }));
     return (
-      <div className="space-y-2">
-        {moods.map((m) => {
-          const pct = total > 0 ? Math.round((dist[m] / total) * 100) : 0;
-          return (
-            <div key={m} className="flex items-center gap-3">
-              <span className="text-base w-6">{MOOD_EMOJI[m]}</span>
-              <span className="text-xs text-zinc-500 w-16">{MOOD_LABEL[m]}</span>
-              <div className="flex-1 bg-zinc-100 rounded-full h-2">
-                <div
-                  className="bg-blue-400 h-2 rounded-full transition-all"
-                  style={{ width: `${pct}%` }}
-                />
-              </div>
-              <span className="text-xs text-zinc-400 w-10 text-right">{pct}%</span>
-            </div>
-          );
-        })}
-      </div>
+      <ResponsiveContainer width="100%" height={160}>
+        <BarChart data={data} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+          <XAxis dataKey="name" tick={{ fontSize: 18 }} />
+          <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+          <Tooltip formatter={(v, _, p) => [`${v}회`, p.payload.label]} />
+          <Bar dataKey="count" radius={[4, 4, 0, 0]}>
+            {data.map((d) => <Cell key={d.key} fill={MOOD_COLOR[d.key]} />)}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    );
+  }
+
+  function renderPainTrendChart(trend: PatientStats["health_log_stats"]["pain_trend_14d"]) {
+    if (trend.length === 0) return <p className="text-sm text-zinc-400">기록 없음</p>;
+    const data = trend.map((p) => ({ date: p.date.slice(5), score: p.avg_pain_score }));
+    return (
+      <ResponsiveContainer width="100%" height={160}>
+        <LineChart data={data} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+          <YAxis domain={[0, 10]} tick={{ fontSize: 11 }} />
+          <Tooltip formatter={(v) => [`${v}점`, "통증 점수"]} />
+          <Line type="monotone" dataKey="score" stroke="#3b82f6" strokeWidth={2} dot={{ r: 3 }} />
+        </LineChart>
+      </ResponsiveContainer>
     );
   }
 
@@ -148,18 +169,13 @@ export default function DashboardPage() {
             </div>
 
             <div className="bg-white border border-zinc-100 rounded-xl p-5">
-              <p className="text-sm font-medium text-zinc-700 mb-1">30일 평균 통증 점수</p>
-              <p className="text-2xl font-bold text-zinc-900">
-                {patientStats.health_log_stats.avg_pain_score_30d != null
-                  ? patientStats.health_log_stats.avg_pain_score_30d.toFixed(1)
-                  : "-"}
-              </p>
-              <p className="text-xs text-zinc-400 mt-1">/ 10점</p>
+              <p className="text-sm font-medium text-zinc-700 mb-3">14일 통증 추이</p>
+              {renderPainTrendChart(patientStats.health_log_stats.pain_trend_14d)}
             </div>
 
             <div className="bg-white border border-zinc-100 rounded-xl p-5">
-              <p className="text-sm font-medium text-zinc-700 mb-4">최근 30일 기분 분포</p>
-              {renderMoodBar(patientStats.mood_distribution_30d)}
+              <p className="text-sm font-medium text-zinc-700 mb-3">최근 30일 기분 분포</p>
+              {renderMoodChart(patientStats.mood_distribution_30d)}
             </div>
           </div>
         )}

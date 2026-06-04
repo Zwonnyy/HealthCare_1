@@ -8,27 +8,32 @@ AI 기반 의료 정보 서비스입니다. 의사가 진료 기록과 처방전
 
 | 기능 | 설명 |
 |------|------|
-| **복약 알림** | 매일 오전 8시, 복약 중인 환자에게 이메일 알림 자동 발송 |
-| **건강 일지** | 환자가 매일 통증 수치·기분·증상을 기록, AI가 회복 추이 분석 |
-| **AI 가이드 스트리밍** | Gemini AI가 복약 안내·생활습관 가이드를 실시간 스트리밍으로 생성 |
+| **AI 가이드 자동 생성** | 진료기록·처방전 기반으로 Gemini AI가 복약 안내·생활습관 가이드 생성 (Celery 비동기) |
+| **RAG 기반 증상 체크** | 의학 가이드라인 벡터 검색 + Gemini AI로 긴급도 평가 및 진료 예약 권고 |
+| **바이탈 AI 이상 감지** | 혈압·혈당·심박수 입력 시 Gemini가 실시간으로 정상 범위 대비 이상 여부 판단 |
+| **약물 상호작용 검사** | 복용 약물 목록을 입력하면 RAG + Gemini로 상호작용 위험 분석 |
+| **복약 알림 스케줄러** | Celery Beat 매 분 체크 — 설정 시각에 자동 인앱 알림 발송 (하루 1회 보장) |
+| **건강 일지 & AI 분석** | 매일 통증·기분·증상 기록, AI가 회복 추이 분석 |
+| **건강 리포트 PDF** | 월별 건강 리포트 브라우저 인쇄/PDF 저장 |
+| **예약 관리** | 환자가 의사에게 예약 요청, 의사가 확정/취소 처리 |
+| **통계 대시보드** | 통증 추이 차트(recharts), 기분 분포 차트, 바이탈 추이 시각화 |
 | **메시지 채널** | 의사-환자 간 진료 기반 메시지 주고받기 |
+| **알림 센터** | 새 메시지·예약·AI 가이드 완료 시 자동 인앱 알림 생성 |
 | **JWT 인증** | Access Token + Redis 기반 Refresh Token (로그아웃 시 즉시 무효화) |
-| **페이지네이션** | 진료기록·건강일지·메시지 목록 오프셋 기반 페이지네이션 |
-| **통계/대시보드** | 역할별 대시보드 — 통증 추이, 기분 분포, 진료 통계 |
-| **알림 센터** | 새 메시지·진료기록·AI 가이드 완료 시 자동 인앱 알림 생성 |
 
 ---
 
 ## 🛠 기술 스택
 
 ```
-Backend   : FastAPI + Tortoise ORM + MySQL
-AI Worker : Celery + Google Gemini API
-Scheduler : Celery Beat (매일 복약 알림)
-Cache     : Redis (Celery 브로커 + Refresh Token 저장)
-Email     : Gmail SMTP (aiosmtplib)
-Frontend  : Next.js 16 + Tailwind CSS + shadcn/ui
+Backend   : FastAPI + Tortoise ORM + MySQL + Aerich (마이그레이션)
+AI        : Google Gemini API (gemini-flash-latest, gemini-embedding-001)
+Vector DB : Qdrant (RAG 파이프라인)
+AI Worker : Celery + Redis (비동기 AI 태스크)
+Scheduler : Celery Beat (복약 알림 매 분 체크)
+Frontend  : Next.js 16 + React 19 + Tailwind CSS + shadcn/ui + recharts
 Infra     : Docker Compose + Nginx + AWS EC2
+CI/CD     : GitHub Actions (ruff lint/format + pytest)
 ```
 
 ---
@@ -38,32 +43,52 @@ Infra     : Docker Compose + Nginx + AWS EC2
 ```
 .
 ├── app/                        # FastAPI 서버
-│   ├── apis/v1/                # API 라우터
-│   │   ├── auth_routers.py     # 회원가입·로그인·로그아웃·토큰 갱신
-│   │   ├── record_routers.py   # 진료 기록 CRUD + 가이드·일지·메시지
+│   ├── apis/v1/                # API 라우터 (20개)
+│   │   ├── auth_routers.py     # 회원가입·로그인·토큰 갱신
+│   │   ├── record_routers.py   # 진료 기록 CRUD
 │   │   ├── guide_routers.py    # AI 가이드 조회
-│   │   ├── health_log_routers.py # 건강 일지 CRUD + AI 분석
-│   │   ├── message_routers.py  # 메시지 채널
-│   │   ├── notification_routers.py # 알림 센터
+│   │   ├── vital_routers.py    # 바이탈 기록 + AI 이상 감지
+│   │   ├── symptom_check_routers.py  # AI 증상 체크
+│   │   ├── appointment_routers.py    # 예약 관리
+│   │   ├── reminder_routers.py       # 복약 알림 설정
+│   │   ├── health_log_routers.py     # 건강 일지 + AI 분석
+│   │   ├── health_goal_routers.py    # 건강 목표 관리
+│   │   ├── health_report_routers.py  # 건강 리포트 PDF
+│   │   ├── drug_interaction_routers.py # 약물 상호작용
 │   │   ├── stats_routers.py    # 통계/대시보드
-│   │   └── user_routers.py     # 유저 정보
-│   ├── models/                 # DB 모델
+│   │   ├── message_routers.py  # 메시지 채널
+│   │   ├── notification_routers.py   # 알림 센터
+│   │   └── ...
+│   ├── models/                 # DB 모델 (16개)
 │   │   ├── users.py            # User (DOCTOR / PATIENT)
 │   │   ├── records.py          # MedicalRecord, Prescription
-│   │   ├── guides.py           # Guide (AI 가이드)
-│   │   ├── health_logs.py      # HealthLog, HealthLogAnalysis
-│   │   ├── messages.py         # Message
-│   │   └── notifications.py    # Notification
-│   ├── core/
-│   │   ├── jwt/                # JWT 발급·검증
-│   │   └── redis.py            # async Redis 클라이언트
-│   └── services/               # 비즈니스 로직
+│   │   ├── vitals.py           # VitalRecord
+│   │   ├── symptom_checks.py   # SymptomCheck
+│   │   ├── medication_reminders.py   # MedicationReminder
+│   │   ├── appointments.py     # Appointment
+│   │   └── ...
+│   ├── services/               # 비즈니스 로직 + AI 연동
+│   │   ├── vitals.py           # Gemini 이상 감지
+│   │   ├── symptom_checks.py   # RAG + Gemini 증상 분석
+│   │   ├── medication_reminders.py   # 알림 발송 로직
+│   │   └── rag/                # RAG 파이프라인
+│   │       ├── guideline_rag.py  # 의학 가이드라인 검색
+│   │       ├── drug_rag.py       # 약물 정보 검색
+│   │       └── patient_rag.py    # 환자 진료기록 검색
+│   └── tests/                  # pytest 테스트 (9개 모듈)
 ├── ai_worker/                  # Celery Worker
 │   └── tasks/
-│       ├── generate_guide.py           # AI 가이드 생성
-│       ├── send_medication_reminder.py # 복약 알림 이메일
-│       └── analyze_health_logs.py      # 건강 일지 AI 분석
-├── frontend/                   # Next.js 프론트엔드
+│       ├── generate_guide.py             # AI 가이드 생성
+│       ├── analyze_health_logs.py        # 건강 일지 AI 분석
+│       └── check_medication_reminders.py # 복약 알림 체크 (매 분)
+├── frontend/                   # Next.js 프론트엔드 (20개 페이지)
+│   └── app/
+│       ├── dashboard/          # 통계 차트 대시보드
+│       ├── vitals/             # 바이탈 기록 + 추이 차트
+│       ├── symptom-check/      # AI 증상 체크
+│       ├── reminders/          # 복약 알림 설정
+│       ├── appointments/       # 예약 관리
+│       └── ...
 ├── infra/                      # Nginx 설정
 ├── scripts/                    # 배포·CI 스크립트
 ├── envs/                       # 환경변수 예시 파일
@@ -219,7 +244,7 @@ API 요청:
 
 ## 📊 AI 기능 상세
 
-### 복약 안내 + 생활습관 가이드
+### 1. 복약 안내 + 생활습관 가이드
 
 ```
 환자 요청
@@ -230,15 +255,37 @@ API 요청:
                  └ lifestyle_guide   : 식단·운동·수면 조언
 ```
 
-또는 **스트리밍** 방식으로 즉시 타이핑 효과와 함께 수신:
+### 2. RAG 기반 증상 체크
+
 ```
-POST /records/{id}/guides/stream
-  └→ SSE (text/event-stream)
-       ├ data: {"type": "chunk", "text": "..."}  # 실시간 청크
-       └ data: {"type": "done", "guide_id": 42}  # 완료
+환자 증상 입력
+  └→ Qdrant 벡터 검색 (의학 가이드라인)
+       └→ 관련 문서 → Gemini 프롬프트 주입
+            └→ JSON 응답
+                 ├ urgency: LOW | MEDIUM | HIGH
+                 ├ assessment: 증상 평가 (3-4문장)
+                 ├ recommendation: 권고 사항
+                 └ suggest_appointment: true | false
 ```
 
-### 건강 일지 AI 분석
+### 3. 바이탈 AI 이상 감지
+
+```
+혈압·혈당·심박수 입력
+  └→ Gemini API (정상 범위 기준 판단)
+       ├ 정상: alert_message = null
+       └ 이상: alert_message = "혈압이 높습니다. 즉시 진료를 받으세요."
+```
+
+### 4. 복약 알림 스케줄러
+
+```
+Celery Beat (매 분 실행)
+  └→ DB 조회: enabled=True, reminder_time == 현재 HH:MM, last_notified_date != 오늘
+       └→ 알림 생성 + last_notified_date 갱신 (하루 1회 보장)
+```
+
+### 5. 건강 일지 AI 분석
 
 ```
 일지 목록 (통증 추이·기분·증상)
@@ -247,14 +294,6 @@ POST /records/{id}/guides/stream
             ├ 전반적인 회복 추이
             ├ 증상 변화 분석
             └ 권장 사항
-```
-
-### 복약 알림 이메일
-
-```
-Celery Beat (매일 오전 8시)
-  └→ DB 조회: 오늘 복약 중인 환자
-       └→ Gmail SMTP → 환자 이메일 발송
 ```
 
 ---

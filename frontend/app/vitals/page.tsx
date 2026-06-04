@@ -1,6 +1,9 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+} from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -116,6 +119,34 @@ export default function VitalsPage() {
           {submitting ? "분석 중..." : "기록하기"}
         </Button>
       </form>
+
+      {mounted && vitals.length >= 2 && (
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl p-5">
+          <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-3">바이탈 추이</h2>
+          <ResponsiveContainer width="100%" height={180}>
+            <LineChart
+              data={[...vitals].reverse().map((v) => ({
+                date: new Date(v.recorded_at).toLocaleDateString("ko-KR", { month: "short", day: "numeric" }),
+                systolic: v.systolic,
+                diastolic: v.diastolic,
+                blood_sugar: v.blood_sugar,
+                heart_rate: v.heart_rate,
+              }))}
+              margin={{ top: 4, right: 8, left: -20, bottom: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
+              <Tooltip />
+              <Legend iconSize={10} wrapperStyle={{ fontSize: 11 }} />
+              <Line type="monotone" dataKey="systolic" name="수축기혈압" stroke="#3b82f6" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+              <Line type="monotone" dataKey="diastolic" name="이완기혈압" stroke="#93c5fd" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+              <Line type="monotone" dataKey="blood_sugar" name="혈당" stroke="#f97316" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+              <Line type="monotone" dataKey="heart_rate" name="심박수" stroke="#22c55e" strokeWidth={2} dot={{ r: 2 }} connectNulls />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       <div className="space-y-3">
         <h2 className="text-lg font-semibold text-zinc-800 dark:text-zinc-200">최근 기록</h2>
