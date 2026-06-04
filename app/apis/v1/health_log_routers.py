@@ -23,6 +23,7 @@ class TrendPoint(BaseModel):
     pain_score: float
     mood: str
 
+
 health_log_router = APIRouter(prefix="/health-logs", tags=["health-logs"])
 
 

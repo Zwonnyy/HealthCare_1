@@ -1,4 +1,3 @@
-
 from fastapi import HTTPException
 from starlette import status
 
@@ -39,7 +38,9 @@ class AppointmentService:
             total = await self.repo.count_for_doctor(user.id)
         return items, total
 
-    async def update_appointment(self, doctor: User, appointment_id: int, data: AppointmentUpdateRequest) -> Appointment:
+    async def update_appointment(
+        self, doctor: User, appointment_id: int, data: AppointmentUpdateRequest
+    ) -> Appointment:
         appt = await self.repo.get(appointment_id)
         if not appt:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="예약을 찾을 수 없습니다.")

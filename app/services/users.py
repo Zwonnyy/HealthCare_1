@@ -29,7 +29,9 @@ class UserManageService:
             if not data.current_password:
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="현재 비밀번호를 입력해주세요.")
             if not verify_password(data.current_password, user.hashed_password):
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="현재 비밀번호가 올바르지 않습니다.")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST, detail="현재 비밀번호가 올바르지 않습니다."
+                )
             update_dict["hashed_password"] = hash_password(data.new_password)
 
         async with in_transaction():

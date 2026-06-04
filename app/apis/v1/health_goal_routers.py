@@ -55,7 +55,9 @@ async def delete_goal(
     await service.delete(patient=patient, goal_id=goal_id)
 
 
-@health_goal_router.get("/{goal_id}/history", response_model=list[HealthGoalHistoryResponse], status_code=status.HTTP_200_OK)
+@health_goal_router.get(
+    "/{goal_id}/history", response_model=list[HealthGoalHistoryResponse], status_code=status.HTTP_200_OK
+)
 async def get_goal_history(
     goal_id: int,
     patient: Annotated[User, Depends(get_patient_user)],

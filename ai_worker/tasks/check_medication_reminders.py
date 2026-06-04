@@ -4,7 +4,6 @@ import logging
 from celery import shared_task
 from tortoise import Tortoise
 
-from ai_worker.core import config
 from ai_worker.core.databases import TORTOISE_ORM
 
 logger = logging.getLogger(__name__)

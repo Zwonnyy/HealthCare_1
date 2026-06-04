@@ -59,14 +59,28 @@ class RecordRepository:
     async def count_doctor_records(self, doctor_id: int) -> int:
         return await self._model.filter(doctor_id=doctor_id).count()
 
-    async def search_patient_records(self, patient_id: int, q: str, offset: int = 0, limit: int = 20) -> list[MedicalRecord]:
-        return await self._model.filter(patient_id=patient_id, diagnosis__icontains=q).order_by("-visited_at").offset(offset).limit(limit)
+    async def search_patient_records(
+        self, patient_id: int, q: str, offset: int = 0, limit: int = 20
+    ) -> list[MedicalRecord]:
+        return (
+            await self._model.filter(patient_id=patient_id, diagnosis__icontains=q)
+            .order_by("-visited_at")
+            .offset(offset)
+            .limit(limit)
+        )
 
     async def count_search_patient_records(self, patient_id: int, q: str) -> int:
         return await self._model.filter(patient_id=patient_id, diagnosis__icontains=q).count()
 
-    async def search_doctor_records(self, doctor_id: int, q: str, offset: int = 0, limit: int = 20) -> list[MedicalRecord]:
-        return await self._model.filter(doctor_id=doctor_id, diagnosis__icontains=q).order_by("-visited_at").offset(offset).limit(limit)
+    async def search_doctor_records(
+        self, doctor_id: int, q: str, offset: int = 0, limit: int = 20
+    ) -> list[MedicalRecord]:
+        return (
+            await self._model.filter(doctor_id=doctor_id, diagnosis__icontains=q)
+            .order_by("-visited_at")
+            .offset(offset)
+            .limit(limit)
+        )
 
     async def count_search_doctor_records(self, doctor_id: int, q: str) -> int:
         return await self._model.filter(doctor_id=doctor_id, diagnosis__icontains=q).count()

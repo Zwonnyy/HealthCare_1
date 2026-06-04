@@ -8,7 +8,9 @@ class MedicationCheckRepository:
         self._model = MedicationCheck
 
     async def get_checked_ids(self, patient_id: int, check_date: date) -> set[int]:
-        checks = await self._model.filter(patient_id=patient_id, check_date=check_date).values_list("prescription_id", flat=True)
+        checks = await self._model.filter(patient_id=patient_id, check_date=check_date).values_list(
+            "prescription_id", flat=True
+        )
         return set(checks)
 
     async def check(self, patient_id: int, prescription_id: int, check_date: date) -> MedicationCheck:

@@ -14,7 +14,6 @@ app = FastAPI(
     default_response_class=ORJSONResponse,
     docs_url="/api/docs",
     redoc_url="/api/redoc",
-
     openapi_url="/api/openapi.json",
 )
 

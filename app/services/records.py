@@ -42,7 +42,9 @@ class MedicalRecordService:
         )
         return record
 
-    async def get_records(self, user: User, offset: int = 0, limit: int = 20, q: str | None = None) -> tuple[list[MedicalRecord], int]:
+    async def get_records(
+        self, user: User, offset: int = 0, limit: int = 20, q: str | None = None
+    ) -> tuple[list[MedicalRecord], int]:
         if q:
             if user.role == UserRole.DOCTOR:
                 items = await self.record_repo.search_doctor_records(user.id, q, offset=offset, limit=limit)

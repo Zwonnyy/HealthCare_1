@@ -57,9 +57,7 @@ async def search_patient_history(patient_id: int, query: str, limit: int = 3) ->
         response = await client.query_points(
             collection_name=_COLLECTION,
             query=vector,
-            query_filter=Filter(
-                must=[FieldCondition(key="patient_id", match=MatchValue(value=patient_id))]
-            ),
+            query_filter=Filter(must=[FieldCondition(key="patient_id", match=MatchValue(value=patient_id))]),
             limit=limit,
             score_threshold=0.4,
         )
@@ -76,7 +74,6 @@ async def search_patient_history(patient_id: int, query: str, limit: int = 3) ->
         lines.append(
             f"- 방문일: {payload.get('visited_at', '미상')}, "
             f"진단: {payload.get('diagnosis', '')}, "
-            f"증상: {payload.get('symptoms', '')}"
-            + (f", 메모: {payload.get('notes')}" if payload.get("notes") else "")
+            f"증상: {payload.get('symptoms', '')}" + (f", 메모: {payload.get('notes')}" if payload.get("notes") else "")
         )
     return "\n".join(lines)

@@ -28,7 +28,9 @@ class AppointmentRepository:
     async def count_for_doctor(self, doctor_id: int) -> int:
         return await self._model.filter(doctor_id=doctor_id).count()
 
-    async def update_status(self, appointment_id: int, status: AppointmentStatus, doctor_notes: str | None = None) -> None:
+    async def update_status(
+        self, appointment_id: int, status: AppointmentStatus, doctor_notes: str | None = None
+    ) -> None:
         update_data: dict = {"status": status}
         if doctor_notes is not None:
             update_data["doctor_notes"] = doctor_notes
