@@ -54,34 +54,34 @@ export default function LoginPage() {
       </div>
 
       {/* 오른쪽 로그인 폼 */}
-      <div className="flex items-center justify-center p-8 bg-white">
+      <div className="flex items-center justify-center p-8 bg-white dark:bg-zinc-950">
         <div className="w-full max-w-sm space-y-8">
           <div>
-            <h2 className="text-3xl font-bold text-zinc-900">로그인</h2>
-            <p className="text-zinc-500 mt-2 text-sm">계속하려면 로그인하세요.</p>
+            <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">로그인</h2>
+            <p className="text-zinc-500 dark:text-zinc-400 mt-2 text-sm">계속하려면 로그인하세요.</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
-              <Label htmlFor="email" className="text-zinc-700 font-medium">이메일</Label>
+              <Label htmlFor="email" className="text-zinc-700 dark:text-zinc-300 font-medium">이메일</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="example@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="h-11"
+                className="h-11 text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600"
                 required
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-zinc-700 font-medium">비밀번호</Label>
+              <Label htmlFor="password" className="text-zinc-700 dark:text-zinc-300 font-medium">비밀번호</Label>
               <Input
                 id="password"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="h-11"
+                className="h-11 text-zinc-900 dark:text-zinc-100 bg-white dark:bg-zinc-800 border-zinc-300 dark:border-zinc-600"
                 required
               />
             </div>
