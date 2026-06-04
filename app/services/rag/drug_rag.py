@@ -224,13 +224,13 @@ async def search_drug_info(medication_names: list[str], limit: int = 2) -> str:
         if vector is None:
             continue
         try:
-            hits = await client.search(
+            response = await client.query_points(
                 collection_name=_COLLECTION,
-                query_vector=vector,
+                query=vector,
                 limit=limit,
                 score_threshold=0.4,
             )
-            for hit in hits:
+            for hit in response.points:
                 payload = hit.payload or {}
                 results.append(
                     f"[{payload.get('name', '')}] ({payload.get('category', '')})\n{payload.get('info', '')}"

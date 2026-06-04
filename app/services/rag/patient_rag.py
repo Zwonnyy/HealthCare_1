@@ -54,9 +54,9 @@ async def search_patient_history(patient_id: int, query: str, limit: int = 3) ->
 
     client = get_client()
     try:
-        hits = await client.search(
+        response = await client.query_points(
             collection_name=_COLLECTION,
-            query_vector=vector,
+            query=vector,
             query_filter=Filter(
                 must=[FieldCondition(key="patient_id", match=MatchValue(value=patient_id))]
             ),
@@ -67,11 +67,11 @@ async def search_patient_history(patient_id: int, query: str, limit: int = 3) ->
         logger.warning("Patient history search failed for patient %d: %s", patient_id, e)
         return ""
 
-    if not hits:
+    if not response.points:
         return ""
 
     lines = []
-    for hit in hits:
+    for hit in response.points:
         payload = hit.payload or {}
         lines.append(
             f"- 방문일: {payload.get('visited_at', '미상')}, "

@@ -158,9 +158,9 @@ async def search_guidelines(query: str, limit: int = 2) -> str:
 
     client = get_client()
     try:
-        hits = await client.search(
+        response = await client.query_points(
             collection_name=_COLLECTION,
-            query_vector=vector,
+            query=vector,
             limit=limit,
             score_threshold=0.4,
         )
@@ -168,11 +168,11 @@ async def search_guidelines(query: str, limit: int = 2) -> str:
         logger.warning("Guidelines search failed for query '%s': %s", query, e)
         return ""
 
-    if not hits:
+    if not response.points:
         return ""
 
     results = []
-    for hit in hits:
+    for hit in response.points:
         payload = hit.payload or {}
         results.append(f"[{payload.get('title', '')}]\n{payload.get('content', '')}")
     return "\n\n".join(results)
