@@ -32,10 +32,14 @@ urgency 기준:
 - LOW: 가정 요법으로 충분하나 지속 시 진료 권고"""
 
 
+async def search_guidelines(query: str, limit: int = 2) -> str:
+    from app.services.rag.guideline_rag import search_guidelines as rag_search_guidelines
+
+    return await rag_search_guidelines(query=query, limit=limit)
+
+
 class SymptomCheckService:
     async def check(self, patient: User, symptom_text: str) -> SymptomCheck:
-        from app.services.rag.guideline_rag import search_guidelines
-
         guideline_context = await search_guidelines(query=symptom_text, limit=2)
         guideline_section = f"[관련 의학 가이드라인]\n{guideline_context}\n\n" if guideline_context else ""
 

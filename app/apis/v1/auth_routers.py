@@ -37,7 +37,8 @@ async def login(
         httponly=True,
         secure=True if config.ENV == Env.PROD else False,
         domain=config.COOKIE_DOMAIN or None,
-        expires=tokens["access_token"].payload["exp"],
+        expires=tokens["refresh_token"].payload["exp"],
+        samesite="lax",
     )
     return resp
 
@@ -68,5 +69,6 @@ async def logout(
         httponly=True,
         secure=True if config.ENV == Env.PROD else False,
         domain=config.COOKIE_DOMAIN or None,
+        samesite="lax",
     )
     return resp

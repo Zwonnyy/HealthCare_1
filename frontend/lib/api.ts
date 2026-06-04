@@ -1,20 +1,41 @@
-import axios from "axios";
+import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
+
+type RetriableRequestConfig = InternalAxiosRequestConfig & { _retry?: boolean };
 
 const api = axios.create({
   baseURL: `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/api/v1`,
   headers: { "Content-Type": "application/json" },
+  withCredentials: true,
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("access_token");
+  const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
+  async (err: AxiosError) => {
+    const original = err.config as RetriableRequestConfig | undefined;
+    const isAuthEndpoint = original?.url?.startsWith("/auth/");
+
+    if (err.response?.status === 401 && original && !original._retry && !isAuthEndpoint) {
+      original._retry = true;
+      try {
+        const { data } = await api.get<{ access_token: string }>("/auth/token/refresh");
+        if (typeof window !== "undefined") {
+          localStorage.setItem("access_token", data.access_token);
+        }
+        original.headers.Authorization = `Bearer ${data.access_token}`;
+        return api(original);
+      } catch {
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("access_token");
+          window.location.href = "/login";
+        }
+      }
+    } else if (err.response?.status === 401 && typeof window !== "undefined") {
       localStorage.removeItem("access_token");
       window.location.href = "/login";
     }
@@ -81,6 +102,8 @@ export const authApi = {
 
   login: (email: string, password: string) =>
     api.post<{ access_token: string }>("/auth/login", { email, password }),
+  logout: () => api.post("/auth/logout"),
+  refresh: () => api.get<{ access_token: string }>("/auth/token/refresh"),
 };
 
 export interface PatientSearchResult {

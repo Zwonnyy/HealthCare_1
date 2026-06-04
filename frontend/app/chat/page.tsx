@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Navbar from "@/components/Navbar";
 import { getToken } from "@/lib/auth";
-import api from "@/lib/api";
 
 interface ChatMessage {
   role: "user" | "ai";

@@ -65,7 +65,7 @@ export default function HealthGoalsPage() {
     if (!getToken()) { router.replace("/login"); return; }
     if (user?.role !== "PATIENT") { router.replace("/dashboard"); return; }
     load();
-  }, [router, load]);
+  }, [router, load, user?.role]);
 
   function handleTypeChange(type: GoalType) {
     const opt = GOAL_TYPE_OPTIONS.find((o) => o.value === type)!;

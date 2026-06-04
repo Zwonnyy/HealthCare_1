@@ -45,16 +45,28 @@ class RecordRepository:
         )
 
     async def get_record(self, record_id: int) -> MedicalRecord | None:
-        return await self._model.get_or_none(id=record_id)
+        return await self._model.get_or_none(id=record_id).prefetch_related("prescriptions")
 
     async def get_patient_records(self, patient_id: int, offset: int = 0, limit: int = 20) -> list[MedicalRecord]:
-        return await self._model.filter(patient_id=patient_id).order_by("-visited_at").offset(offset).limit(limit)
+        return (
+            await self._model.filter(patient_id=patient_id)
+            .order_by("-visited_at")
+            .offset(offset)
+            .limit(limit)
+            .prefetch_related("prescriptions")
+        )
 
     async def count_patient_records(self, patient_id: int) -> int:
         return await self._model.filter(patient_id=patient_id).count()
 
     async def get_doctor_records(self, doctor_id: int, offset: int = 0, limit: int = 20) -> list[MedicalRecord]:
-        return await self._model.filter(doctor_id=doctor_id).order_by("-visited_at").offset(offset).limit(limit)
+        return (
+            await self._model.filter(doctor_id=doctor_id)
+            .order_by("-visited_at")
+            .offset(offset)
+            .limit(limit)
+            .prefetch_related("prescriptions")
+        )
 
     async def count_doctor_records(self, doctor_id: int) -> int:
         return await self._model.filter(doctor_id=doctor_id).count()
@@ -67,6 +79,7 @@ class RecordRepository:
             .order_by("-visited_at")
             .offset(offset)
             .limit(limit)
+            .prefetch_related("prescriptions")
         )
 
     async def count_search_patient_records(self, patient_id: int, q: str) -> int:
@@ -80,6 +93,7 @@ class RecordRepository:
             .order_by("-visited_at")
             .offset(offset)
             .limit(limit)
+            .prefetch_related("prescriptions")
         )
 
     async def count_search_doctor_records(self, doctor_id: int, q: str) -> int:

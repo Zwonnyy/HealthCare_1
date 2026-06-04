@@ -43,6 +43,14 @@ async def get_unread_count(
     return Response(UnreadCountResponse(count=count).model_dump(), status_code=status.HTTP_200_OK)
 
 
+@notification_router.patch("/read-all", status_code=status.HTTP_204_NO_CONTENT)
+async def mark_all_as_read(
+    user: Annotated[User, Depends(get_request_user)],
+    service: Annotated[NotificationService, Depends(NotificationService)],
+) -> None:
+    await service.mark_all_as_read(user=user)
+
+
 @notification_router.patch("/{notification_id}/read", status_code=status.HTTP_204_NO_CONTENT)
 async def mark_as_read(
     notification_id: int,
@@ -50,14 +58,6 @@ async def mark_as_read(
     service: Annotated[NotificationService, Depends(NotificationService)],
 ) -> None:
     await service.mark_as_read(user=user, notification_id=notification_id)
-
-
-@notification_router.patch("/read-all", status_code=status.HTTP_204_NO_CONTENT)
-async def mark_all_as_read(
-    user: Annotated[User, Depends(get_request_user)],
-    service: Annotated[NotificationService, Depends(NotificationService)],
-) -> None:
-    await service.mark_all_as_read(user=user)
 
 
 @notification_router.get("/stream")

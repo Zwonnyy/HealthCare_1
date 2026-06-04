@@ -72,7 +72,7 @@ export default function DashboardPage() {
         .catch(() => toast.error("통계를 불러오지 못했어요."))
         .finally(() => setLoading(false));
     }
-  }, [router]);
+  }, [router, user]);
 
   function renderMoodChart(dist: PatientStats["mood_distribution_30d"]) {
     const moods = ["GREAT", "GOOD", "NORMAL", "BAD", "TERRIBLE"] as const;

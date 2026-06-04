@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
 } from "recharts";
 import Navbar from "@/components/Navbar";
 import PaginationBar from "@/components/PaginationBar";
@@ -77,7 +77,7 @@ export default function HealthLogsPage() {
     if (user?.role !== "PATIENT") { router.replace("/records"); return; }
     loadLogs();
     healthTrendApi.get(30).then(({ data }) => setTrendData(data)).catch(() => {});
-  }, [router, loadLogs]);
+  }, [router, loadLogs, user?.role]);
 
   async function handleCreate() {
     if (!form.symptoms_text.trim()) { toast.error("증상을 입력해주세요."); return; }

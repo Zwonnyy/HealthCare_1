@@ -1,5 +1,7 @@
 import asyncio
 import logging
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,24 +11,6 @@ from app.apis.v1 import v1_routers
 from app.core.db.databases import initialize_tortoise
 
 logger = logging.getLogger(__name__)
-
-app = FastAPI(
-    default_response_class=ORJSONResponse,
-    docs_url="/api/docs",
-    redoc_url="/api/redoc",
-    openapi_url="/api/openapi.json",
-)
-
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-initialize_tortoise(app)
-app.include_router(v1_routers)
 
 
 async def _init_rag_background() -> None:
@@ -57,6 +41,31 @@ async def _init_rag_background() -> None:
         logger.warning("RAG init failed (non-fatal): %s", e)
 
 
-@app.on_event("startup")
-async def startup_rag() -> None:
-    asyncio.create_task(_init_rag_background())
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    rag_task = asyncio.create_task(_init_rag_background())
+    try:
+        yield
+    finally:
+        if not rag_task.done():
+            rag_task.cancel()
+
+
+app = FastAPI(
+    default_response_class=ORJSONResponse,
+    docs_url="/api/docs",
+    redoc_url="/api/redoc",
+    openapi_url="/api/openapi.json",
+    lifespan=lifespan,
+)
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+initialize_tortoise(app)
+app.include_router(v1_routers)

@@ -132,7 +132,7 @@ SECRET_KEY=your-secret-key
 
 > **Gmail 앱 비밀번호 발급**: Google 계정 → 보안 → 2단계 인증 활성화 → 앱 비밀번호 생성
 
-### 2. 전체 스택 실행 (Docker)
+### 2. 백엔드 스택 실행 (Docker)
 
 ```bash
 docker-compose up -d --build
@@ -140,9 +140,20 @@ docker-compose up -d --build
 
 | 서비스 | 주소 |
 |--------|------|
-| 프론트엔드 (Next.js) | http://localhost:3000 |
 | API Swagger | http://localhost/api/docs |
 | API ReDoc | http://localhost/api/redoc |
+
+프론트엔드는 별도 터미널에서 실행합니다.
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+| 서비스 | 주소 |
+|--------|------|
+| 프론트엔드 (Next.js) | http://localhost:3000 |
 
 ### 3. 로컬 개별 실행
 
