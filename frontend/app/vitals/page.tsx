@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Navbar from "@/components/Navbar";
 import { vitalApi, type VitalRecord } from "@/lib/api";
 
 const FIELD_CONFIG = [
@@ -17,6 +18,7 @@ const FIELD_CONFIG = [
 type VitalKey = (typeof FIELD_CONFIG)[number]["key"];
 
 export default function VitalsPage() {
+  const [mounted, setMounted] = useState(false);
   const [vitals, setVitals] = useState<VitalRecord[]>([]);
   const [form, setForm] = useState<Partial<Record<VitalKey, string>>>({});
   const [notes, setNotes] = useState("");
@@ -35,7 +37,10 @@ export default function VitalsPage() {
     }
   }, []);
 
-  useEffect(() => { fetchVitals(); }, [fetchVitals]);
+  useEffect(() => {
+    setMounted(true);
+    fetchVitals();
+  }, [fetchVitals]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -74,6 +79,8 @@ export default function VitalsPage() {
   }
 
   return (
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
+      <Navbar />
     <div className="max-w-3xl mx-auto px-4 py-8 space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">건강 바이탈 기록</h1>
@@ -126,7 +133,9 @@ export default function VitalsPage() {
             }`}
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-zinc-400">{formatDate(v.recorded_at)}</span>
+              <span className="text-xs text-zinc-400" suppressHydrationWarning>
+                {mounted ? formatDate(v.recorded_at) : ""}
+              </span>
               {v.alert_message && <span className="text-xs font-medium text-amber-600 dark:text-amber-400">⚠ 이상 감지</span>}
             </div>
             <div className="flex flex-wrap gap-3 text-sm">
@@ -142,6 +151,7 @@ export default function VitalsPage() {
           </div>
         ))}
       </div>
+    </div>
     </div>
   );
 }

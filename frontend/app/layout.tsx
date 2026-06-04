@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="ko" className="h-full" suppressHydrationWarning>
-      <body className={`${geist.className} min-h-full bg-zinc-50 dark:bg-zinc-900`}>
+      <body className={`${geist.className} min-h-full bg-zinc-50 dark:bg-zinc-900`} suppressHydrationWarning>
         <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
           {children}
           <Toaster richColors position="top-right" />

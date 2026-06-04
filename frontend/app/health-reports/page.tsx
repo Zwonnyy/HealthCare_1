@@ -11,15 +11,20 @@ const MONTHS = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","
 
 export default function HealthReportsPage() {
   const router = useRouter();
-  const now = new Date();
 
   const [reports, setReports] = useState<HealthReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(0);
+  const [selectedMonth, setSelectedMonth] = useState(0);
+
+  useEffect(() => {
+    const now = new Date();
+    setSelectedYear(now.getFullYear());
+    setSelectedMonth(now.getMonth() + 1);
+  }, []);
 
   const load = useCallback(() => {
     healthReportApi.list()
@@ -51,7 +56,9 @@ export default function HealthReportsPage() {
     }
   }
 
-  const years = Array.from({ length: 3 }, (_, i) => now.getFullYear() - i);
+  const years = selectedYear > 0
+    ? Array.from({ length: 3 }, (_, i) => selectedYear - i)
+    : [];
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">

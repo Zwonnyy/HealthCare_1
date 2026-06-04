@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Navbar from "@/components/Navbar";
 import { reminderApi, type MedicationReminder } from "@/lib/api";
 
 export default function RemindersPage() {
@@ -66,6 +67,8 @@ export default function RemindersPage() {
   }
 
   return (
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
+      <Navbar />
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">복약 알림 설정</h1>
@@ -143,6 +146,7 @@ export default function RemindersPage() {
           </div>
         ))}
       </div>
+    </div>
     </div>
   );
 }

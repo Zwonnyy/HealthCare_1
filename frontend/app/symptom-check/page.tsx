@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import Navbar from "@/components/Navbar";
 import { symptomCheckApi, type SymptomCheck, type UrgencyLevel } from "@/lib/api";
 
 const URGENCY_CONFIG: Record<UrgencyLevel, { label: string; color: string; bg: string }> = {
@@ -20,6 +21,7 @@ const EXAMPLE_SYMPTOMS = [
 
 export default function SymptomCheckPage() {
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
   const [symptomText, setSymptomText] = useState("");
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState<SymptomCheck | null>(null);
@@ -38,7 +40,10 @@ export default function SymptomCheckPage() {
     }
   }, []);
 
-  useEffect(() => { fetchHistory(); }, [fetchHistory]);
+  useEffect(() => {
+    setMounted(true);
+    fetchHistory();
+  }, [fetchHistory]);
 
   async function handleCheck() {
     if (!symptomText.trim()) {
@@ -69,6 +74,8 @@ export default function SymptomCheckPage() {
   const urgencyInfo = result?.urgency ? URGENCY_CONFIG[result.urgency] : null;
 
   return (
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-900">
+      <Navbar />
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-8">
       <div>
         <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">AI 증상 체크</h1>
@@ -132,7 +139,9 @@ export default function SymptomCheckPage() {
               <div key={c.id} className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4 space-y-2">
                 <div className="flex items-center justify-between">
                   <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300 line-clamp-1">{c.symptom_text}</p>
-                  <span className="text-xs text-zinc-400 ml-2 shrink-0">{formatDate(c.created_at)}</span>
+                  <span className="text-xs text-zinc-400 ml-2 shrink-0" suppressHydrationWarning>
+                    {mounted ? formatDate(c.created_at) : ""}
+                  </span>
                 </div>
                 {uInfo && (
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${uInfo.bg} ${uInfo.color}`}>
@@ -144,6 +153,7 @@ export default function SymptomCheckPage() {
           })}
         </div>
       )}
+    </div>
     </div>
   );
 }
