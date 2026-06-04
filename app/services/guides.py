@@ -98,12 +98,23 @@ class GuideService:
         guide = await self.guide_repo.create_guide(record_id=record_id)
         await Guide.filter(id=guide.id).update(status=GuideStatus.GENERATING)
 
+        from app.services.rag.guideline_rag import search_guidelines
+        from app.services.rag.patient_rag import search_patient_history
+
+        patient_history_context = await search_patient_history(
+            patient_id=record.patient_id,
+            query=f"{record.diagnosis} {record.symptoms}",
+        )
+        guideline_context = await search_guidelines(query=record.diagnosis)
+
         return _generate_guide_stream(
             guide_id=guide.id,
             diagnosis=record.diagnosis,
             symptoms=record.symptoms,
             notes=record.notes,
             prescriptions_text=prescriptions_text,
+            patient_history_context=patient_history_context,
+            guideline_context=guideline_context,
         )
 
 
@@ -113,19 +124,27 @@ async def _generate_guide_stream(
     symptoms: str,
     prescriptions_text: str,
     notes: str | None,
+    patient_history_context: str = "",
+    guideline_context: str = "",
 ) -> AsyncGenerator[str, None]:
     full_text = ""
     try:
+        rag_prefix = ""
+        if patient_history_context:
+            rag_prefix += f"[환자 과거 진료 이력 (RAG)]\n{patient_history_context}\n\n"
+        if guideline_context:
+            rag_prefix += f"[관련 의학 가이드라인 (RAG)]\n{guideline_context}\n\n"
+        prompt_contents = rag_prefix + _GUIDE_USER_PROMPT_TEMPLATE.format(
+            diagnosis=diagnosis,
+            symptoms=symptoms,
+            notes=notes or "없음",
+            prescriptions_text=prescriptions_text,
+        )
         client = genai.Client(api_key=config.GEMINI_API_KEY)
         async for chunk in await client.aio.models.generate_content_stream(
             model="gemini-flash-latest",
             config=types.GenerateContentConfig(system_instruction=_GUIDE_SYSTEM_PROMPT),
-            contents=_GUIDE_USER_PROMPT_TEMPLATE.format(
-                diagnosis=diagnosis,
-                symptoms=symptoms,
-                notes=notes or "없음",
-                prescriptions_text=prescriptions_text,
-            ),
+            contents=prompt_contents,
         ):
             if chunk.text:
                 full_text += chunk.text

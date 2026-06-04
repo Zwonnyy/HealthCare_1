@@ -41,3 +41,6 @@ class Config(BaseSettings):
     JWT_LEEWAY: int = 5
 
     GEMINI_API_KEY: str = ""
+
+    QDRANT_HOST: str = "localhost"
+    QDRANT_PORT: int = 6333

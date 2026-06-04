@@ -62,12 +62,18 @@ class DrugInteractionService:
             for p in prescriptions
         )
 
+        from app.services.rag.drug_rag import search_drug_info
+
+        drug_rag_context = await search_drug_info([p.medication_name for p in prescriptions])
+        rag_section = f"\n[참고 약물 정보 (RAG)]\n{drug_rag_context}\n\n" if drug_rag_context else ""
+        contents = rag_section + _USER_PROMPT.format(medications=med_list)
+
         try:
             client = genai.Client(api_key=config.GEMINI_API_KEY)
             response = await client.aio.models.generate_content(
                 model="gemini-flash-latest",
                 config=types.GenerateContentConfig(system_instruction=_SYSTEM_PROMPT),
-                contents=_USER_PROMPT.format(medications=med_list),
+                contents=contents,
             )
             result_text = response.text
             has_warning = any(kw in result_text for kw in ["경고", "위험", "금기", "주의"])

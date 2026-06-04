@@ -54,8 +54,13 @@ class HealthReportService:
         else:
             goals_summary = "설정된 건강 목표가 없습니다."
 
-        prompt = f"""{year}년 {month}월 건강 리포트를 작성해주세요.
+        from app.services.rag.guideline_rag import search_guidelines
 
+        guideline_context = await search_guidelines(query=f"건강 관리 {logs_summary[:100]}")
+        guideline_section = f"\n[관련 의학 가이드라인]\n{guideline_context}\n" if guideline_context else ""
+
+        prompt = f"""{year}년 {month}월 건강 리포트를 작성해주세요.
+{guideline_section}
 [이달의 건강 데이터]
 {logs_summary}
 
