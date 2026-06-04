@@ -65,7 +65,12 @@ class TestStatsAPI(TestCase):
         today = date.today()
         logs = [
             {"log_date": str(today - timedelta(days=5)), "pain_score": 4, "mood": "BAD", "symptoms_text": "두통"},
-            {"log_date": str(today - timedelta(days=3)), "pain_score": 6, "mood": "TERRIBLE", "symptoms_text": "심한 두통"},
+            {
+                "log_date": str(today - timedelta(days=3)),
+                "pain_score": 6,
+                "mood": "TERRIBLE",
+                "symptoms_text": "심한 두통",
+            },
             {"log_date": str(today - timedelta(days=1)), "pain_score": 2, "mood": "GOOD", "symptoms_text": "호전"},
         ]
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
