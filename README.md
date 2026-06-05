@@ -1,6 +1,54 @@
-# 🏥 AI Healthcare Service
+# 🏥 MediGuide AI
 
-AI 기반 의료 정보 서비스입니다. 의사가 진료 기록과 처방전을 입력하면, AI가 환자에게 맞춤형 복약 안내와 생활습관 가이드를 자동 생성합니다.
+AI 기반 의사-환자 건강관리 플랫폼입니다. 의사가 진료 기록과 처방전을 등록하면 환자는 AI 복약 가이드, 건강 인사이트, 복약 체크, 진료 전 문진, 건강 목표 관리를 받을 수 있고, 의사는 환자 위험도 큐와 타임라인으로 진료 전후 상태를 빠르게 파악할 수 있습니다.
+
+---
+
+## 📌 포트폴리오 요약
+
+| 항목 | 내용 |
+|------|------|
+| **프로젝트 목적** | 진료 후 환자 관리 공백을 줄이고, 의사가 환자 상태 변화를 한눈에 볼 수 있는 AI 헬스케어 서비스 구현 |
+| **주요 사용자** | 환자, 의사 |
+| **핵심 가치** | AI 안내, RAG 증상 분석, 복약 관리, 위험 신호 알림, 의사용 환자 모니터링 |
+| **개발 범위** | 백엔드 API, 프론트엔드, 인증, DB 모델링, AI 연동, 비동기 작업, CI/CD, 배포 설정 |
+| **기술 키워드** | FastAPI, Next.js, MySQL, Redis, Celery, Qdrant, Gemini API, JWT, GitHub Actions, Docker |
+
+### 문제 정의
+
+- 진료 후 환자가 복약법과 생활관리 지침을 잊거나 꾸준히 실천하지 못하는 문제가 있습니다.
+- 의사는 환자의 건강일지, 바이탈, 증상 체크, 문진 내용을 여러 화면에서 확인해야 해 진료 전 상태 파악이 어렵습니다.
+- 환자의 위험 신호가 누적되어도 의료진에게 빠르게 전달되지 않으면 대응이 늦어질 수 있습니다.
+
+### 해결 방향
+
+- 진료기록과 처방전을 기반으로 환자 맞춤형 AI 복약/생활 가이드를 생성합니다.
+- 건강일지, 바이탈, 증상 체크, 복약 체크를 통합 분석해 건강 리스크와 누락 패턴을 제공합니다.
+- 의사용 환자 위험도 큐와 타임라인을 제공해 위험 환자를 우선 확인할 수 있게 했습니다.
+- 예약 전 문진을 AI가 요약하고 SOAP 진료 메모 초안을 생성해 진료 준비 시간을 줄입니다.
+
+### 포트폴리오 핵심 어필 포인트
+
+| 구분 | 구현 내용 |
+|------|-----------|
+| **AI/RAG** | Gemini API와 Qdrant 벡터 검색을 활용한 복약 가이드, 증상 체크, 약물 상호작용 분석 |
+| **백엔드 설계** | FastAPI 라우터/서비스/레포지토리 계층 분리, Tortoise ORM 기반 MySQL 모델링 |
+| **비동기 처리** | Celery + Redis로 AI 가이드 생성, 건강일지 분석, 복약 알림 스케줄링 처리 |
+| **인증/보안** | JWT Access Token + Redis Refresh Token 구조, 역할 기반 의사/환자 권한 분리 |
+| **프론트엔드** | Next.js App Router 기반 역할별 화면, 차트, 건강 인사이트, 문진/타임라인 UI |
+| **품질 관리** | GitHub Actions에서 Ruff lint/format, pytest coverage 실행. Vercel 빌드 타입 오류 수정 경험 포함 |
+
+### 대표 시나리오
+
+```text
+1. 의사가 환자 진료기록과 처방전을 등록
+2. 환자는 AI 복약 가이드와 진료 후 액션 플랜 확인
+3. 환자가 복약 체크, 바이탈, 건강일지, 증상 체크를 기록
+4. AI 건강 인사이트가 리스크와 복약 누락 패턴을 분석
+5. 리스크가 높으면 환자와 담당 의사에게 알림 생성
+6. 의사는 위험도 큐와 환자 타임라인으로 우선 확인할 환자를 선별
+7. 다음 진료 전 환자는 문진을 작성하고, 의사는 AI 요약과 SOAP 메모 초안을 확인
+```
 
 ---
 
@@ -16,6 +64,8 @@ AI 기반 의료 정보 서비스입니다. 의사가 진료 기록과 처방전
 | **AI 건강 인사이트** | 건강 리스크 예측, 복약 순응도, 복약 누락 패턴 분석을 한 화면에서 제공 |
 | **진료 전 AI 문진** | 환자가 예약 전 문진을 작성하면 Gemini가 의사용 요약과 SOAP 진료 메모 초안 생성 |
 | **의사용 환자 타임라인** | 진료기록·바이탈·건강일지·증상체크·문진 요약을 시간순으로 통합 조회 |
+| **의사용 환자 위험도 큐** | 담당 환자의 건강 리스크를 높음/주의/낮음 순으로 정렬해 우선 확인 |
+| **진료 후 액션 플랜** | 진료기록·처방·의사 메모 기반으로 환자 체크리스트 자동 생성 |
 | **위험 신호 자동 알림** | 건강 리스크가 주의/높음이면 환자와 담당 의사에게 중복 방지 알림 생성 |
 | **건강 일지 & AI 분석** | 매일 통증·기분·증상 기록, AI가 회복 추이 분석 |
 | **맞춤 건강 목표 추천** | 최근 바이탈·통증·복약 기록 기반으로 개인화 목표 추천 및 즉시 생성 |
@@ -39,7 +89,30 @@ AI Worker : Celery + Redis (비동기 AI 태스크)
 Scheduler : Celery Beat (복약 알림 매 분 체크)
 Frontend  : Next.js 16 + React 19 + Tailwind CSS + shadcn/ui + recharts
 Infra     : Docker Compose + Nginx + AWS EC2
-CI/CD     : GitHub Actions (ruff lint/format + pytest)
+CI/CD     : GitHub Actions (ruff lint/format + pytest), Vercel Frontend Build
+```
+
+---
+
+## 🧭 아키텍처
+
+```text
+Next.js Frontend
+  ├ 환자 화면: 대시보드, 복약 체크, 건강 인사이트, 문진, 목표, 리포트
+  └ 의사 화면: 진료기록, 환자 위험도 큐, 타임라인, 문진 요약
+
+FastAPI Backend
+  ├ Auth/JWT/Redis Refresh Token
+  ├ Records/Appointments/Messages/Notifications
+  ├ Health Logs/Vitals/Symptom Checks/Medication Checks
+  ├ Health Insights/Risk Queue/Action Plan
+  └ AI Services
+       ├ Gemini API
+       ├ Qdrant RAG
+       └ Celery Worker + Redis Broker
+
+MySQL
+  └ Users, Records, Prescriptions, HealthLogs, Vitals, Reminders, Appointments, Notifications ...
 ```
 
 ---
@@ -208,6 +281,7 @@ uv run celery -A ai_worker.main beat --loglevel=info
 | GET | `/records/{id}/guides` | 가이드 목록 조회 | 의사·환자 |
 | GET | `/records/{id}/health-logs` | 진료별 건강 일지 조회 | 의사·환자 |
 | GET | `/records/{id}/messages` | 진료별 메시지 스레드 | 의사·환자 |
+| GET | `/records/{id}/action-plan` | 진료 후 환자 액션 플랜 조회 | 의사·환자 |
 
 ### 건강 일지 `/api/v1/health-logs`
 
@@ -246,6 +320,7 @@ uv run celery -A ai_worker.main beat --loglevel=info
 | GET | `/health-insights/risk` | 최근 건강일지·바이탈·증상체크 기반 건강 리스크 산정 + 위험 알림 자동 생성 | 환자 |
 | GET | `/health-insights/medication-adherence` | 처방 기간 대비 복약 체크율 분석 | 환자 |
 | GET | `/health-insights/medication-patterns` | 요일별 복약 누락, 연속 누락, 개선 제안 분석 | 환자 |
+| GET | `/health-insights/risk-queue` | 담당 환자 위험도 큐 조회 | 의사 |
 | POST | `/health-insights/appointments/{appointment_id}/pre-visit` | 예약 전 문진 작성 + AI 요약 생성 | 환자 |
 | GET | `/health-insights/pre-visits` | 문진 요약 목록 조회 | 의사·환자 |
 | POST | `/health-insights/pre-visits/{pre_visit_id}/clinical-note-draft` | 문진 기반 SOAP 진료 메모 초안 생성 | 의사 |
@@ -385,6 +460,25 @@ Celery Beat (매 분 실행)
        └ P: 확인/검사/추적 계획 초안
 ```
 
+### 8. 의사용 위험도 큐 + 환자 타임라인
+
+```text
+담당 환자 목록 수집
+  ├ 진료기록이 있는 환자
+  └ 예약 이력이 있는 환자
+       └→ 환자별 건강 리스크 계산
+            ├ 높음/주의/낮음 정렬
+            ├ 최근 활동 시각 표시
+            └ 환자 선택 시 타임라인 조회
+
+환자 타임라인
+  ├ 진료기록
+  ├ 건강일지
+  ├ 바이탈 기록
+  ├ 증상 체크
+  └ 진료 전 문진
+```
+
 ---
 
 ## 🧪 품질 관리
@@ -402,10 +496,25 @@ Celery Beat (매 분 실행)
 
 최근 검증 결과:
 
-- `uv run --group app --group dev ruff check .` 통과
-- `uv run --group app --group dev pytest` 61 passed
+- `uv run ruff check .` 통과
+- `uv run ruff format . --check` 통과
+- `uv run coverage run -m pytest app` 61 passed
+- `uv run coverage report -m` 통과
+- `cd frontend && npm run build` 통과
 - `cd frontend && npm run lint` 통과
   - Next.js `<img>` 최적화 관련 warning 2개는 남아 있음
+
+---
+
+## 🧯 트러블슈팅
+
+| 문제 | 원인 | 해결 |
+|------|------|------|
+| **Vercel 빌드 실패** | `NotificationType`에 `HEALTH_RISK_ALERT`를 추가했지만 `Record<NotificationType, string>` 아이콘 매핑에서 누락 | 알림 페이지에 신규 타입 매핑을 추가하고 `npm run build` 통과 확인 |
+| **GitHub Actions CI 실패** | 로컬 lint는 통과했지만 CI의 `ruff format . --check`에서 포맷 불일치 발생 | CI와 동일한 명령을 로컬에서 재현하고 Ruff format 적용 |
+| **AI 응답 실패 가능성** | Gemini API 호출 실패 또는 JSON 응답 파싱 실패 가능 | 문진 요약과 SOAP 메모 초안 생성에 fallback 응답을 구현해 사용자 흐름 유지 |
+| **알림 중복 생성** | 건강 리스크 API 조회마다 같은 위험 알림이 반복 생성될 수 있음 | 최근 24시간 동일 제목의 리스크 알림이 있으면 새로 생성하지 않도록 제한 |
+| **복약 알림 중복 발송** | 스케줄러가 매 분 실행되면 같은 알림이 반복될 수 있음 | `last_notified_date`로 하루 1회만 발송되도록 제어 |
 
 ---
 
