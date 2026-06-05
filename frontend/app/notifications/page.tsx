@@ -16,6 +16,7 @@ const TYPE_ICON: Record<NotificationType, string> = {
   APPOINTMENT_REQUESTED: "📅",
   APPOINTMENT_CONFIRMED: "✅",
   MEDICATION_REMINDER: "💊",
+  HEALTH_RISK_ALERT: "⚠️",
 };
 
 export default function NotificationsPage() {
