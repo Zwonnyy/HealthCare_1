@@ -397,8 +397,18 @@ export interface HealthGoalHistoryPoint {
   recorded_at: string;
 }
 
+export interface HealthGoalRecommendation {
+  goal_type: GoalType;
+  title: string;
+  target_value: number;
+  unit: string;
+  deadline: string | null;
+  reason: string;
+}
+
 export const healthGoalApi = {
   list: () => api.get<HealthGoal[]>("/health-goals/goals"),
+  recommendations: () => api.get<HealthGoalRecommendation[]>("/health-goals/goals/recommendations"),
   create: (data: { goal_type: GoalType; title: string; target_value: number; unit: string; deadline?: string }) =>
     api.post<HealthGoal>("/health-goals/goals", data),
   update: (id: number, data: { current_value?: number; achieved?: boolean }) =>

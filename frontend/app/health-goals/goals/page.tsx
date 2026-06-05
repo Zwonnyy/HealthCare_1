@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Navbar from "@/components/Navbar";
-import { healthGoalApi, HealthGoal, HealthGoalHistoryPoint, GoalType } from "@/lib/api";
+import { healthGoalApi, HealthGoal, HealthGoalHistoryPoint, HealthGoalRecommendation, GoalType } from "@/lib/api";
 import { getToken, getUser } from "@/lib/auth";
 
 const GOAL_TYPE_OPTIONS: { value: GoalType; label: string; emoji: string; defaultUnit: string }[] = [
@@ -35,7 +35,9 @@ export default function HealthGoalsPage() {
   const user = getUser();
 
   const [goals, setGoals] = useState<HealthGoal[]>([]);
+  const [recommendations, setRecommendations] = useState<HealthGoalRecommendation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [applyingRecommendation, setApplyingRecommendation] = useState<string | null>(null);
 
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -55,8 +57,11 @@ export default function HealthGoalsPage() {
   const [chartLoading, setChartLoading] = useState(false);
 
   const load = useCallback(() => {
-    healthGoalApi.list()
-      .then(({ data }) => setGoals(data))
+    Promise.all([healthGoalApi.list(), healthGoalApi.recommendations()])
+      .then(([goalsResponse, recommendationsResponse]) => {
+        setGoals(goalsResponse.data);
+        setRecommendations(recommendationsResponse.data);
+      })
       .catch(() => toast.error("목표를 불러오지 못했어요."))
       .finally(() => setLoading(false));
   }, []);
@@ -91,6 +96,25 @@ export default function HealthGoalsPage() {
       toast.error("목표 설정에 실패했어요.");
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function handleApplyRecommendation(recommendation: HealthGoalRecommendation) {
+    setApplyingRecommendation(recommendation.title);
+    try {
+      await healthGoalApi.create({
+        goal_type: recommendation.goal_type,
+        title: recommendation.title,
+        target_value: recommendation.target_value,
+        unit: recommendation.unit,
+        deadline: recommendation.deadline || undefined,
+      });
+      toast.success("추천 목표를 추가했어요.");
+      load();
+    } catch {
+      toast.error("추천 목표 추가에 실패했어요.");
+    } finally {
+      setApplyingRecommendation(null);
     }
   }
 
@@ -160,6 +184,51 @@ export default function HealthGoalsPage() {
             + 목표 추가
           </Button>
         </div>
+
+        {!loading && recommendations.length > 0 && (
+          <section className="mb-8">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
+                맞춤 추천
+              </h2>
+              <span className="text-xs text-zinc-400">최근 건강 기록 기반</span>
+            </div>
+            <div className="grid gap-3">
+              {recommendations.map((recommendation) => {
+                const opt = GOAL_TYPE_OPTIONS.find((o) => o.value === recommendation.goal_type)!;
+                return (
+                  <article
+                    key={`${recommendation.goal_type}-${recommendation.title}`}
+                    className="bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-xl p-4"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                      <div className="flex items-start gap-3">
+                        <span className="text-xl">{opt.emoji}</span>
+                        <div>
+                          <p className="font-semibold text-zinc-900 dark:text-zinc-100">{recommendation.title}</p>
+                          <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">{recommendation.reason}</p>
+                          <p className="mt-2 text-xs text-zinc-400">
+                            목표 {recommendation.target_value} {recommendation.unit}
+                            {recommendation.deadline && ` · ${new Date(recommendation.deadline).toLocaleDateString("ko-KR")}까지`}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="shrink-0"
+                        onClick={() => handleApplyRecommendation(recommendation)}
+                        disabled={applyingRecommendation === recommendation.title}
+                      >
+                        {applyingRecommendation === recommendation.title ? "추가 중..." : "목표로 추가"}
+                      </Button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
 
         {loading && (
           <div className="space-y-3">

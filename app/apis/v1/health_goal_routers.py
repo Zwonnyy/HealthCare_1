@@ -7,6 +7,7 @@ from app.dependencies.security import get_patient_user
 from app.dtos.health_goals import (
     HealthGoalCreateRequest,
     HealthGoalHistoryResponse,
+    HealthGoalRecommendationResponse,
     HealthGoalResponse,
     HealthGoalUpdateRequest,
 )
@@ -33,6 +34,17 @@ async def list_goals(
 ) -> Response:
     goals = await service.list_goals(patient=patient)
     return Response([HealthGoalResponse.model_validate(g).model_dump() for g in goals], status_code=status.HTTP_200_OK)
+
+
+@health_goal_router.get(
+    "/recommendations", response_model=list[HealthGoalRecommendationResponse], status_code=status.HTTP_200_OK
+)
+async def recommend_goals(
+    patient: Annotated[User, Depends(get_patient_user)],
+    service: Annotated[HealthGoalService, Depends(HealthGoalService)],
+) -> Response:
+    recommendations = await service.recommendations(patient=patient)
+    return Response([item.model_dump() for item in recommendations], status_code=status.HTTP_200_OK)
 
 
 @health_goal_router.patch("/{goal_id}", response_model=HealthGoalResponse, status_code=status.HTTP_200_OK)

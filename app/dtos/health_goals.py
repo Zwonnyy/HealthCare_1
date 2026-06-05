@@ -20,6 +20,15 @@ class HealthGoalCreateRequest(BaseModel):
     deadline: date | None = None
 
 
+class HealthGoalRecommendationResponse(BaseModel):
+    goal_type: GoalType
+    title: str
+    target_value: float
+    unit: str
+    deadline: date | None
+    reason: str
+
+
 class HealthGoalUpdateRequest(BaseModel):
     current_value: float | None = None
     achieved: bool | None = None
