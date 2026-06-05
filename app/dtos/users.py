@@ -37,6 +37,7 @@ class UserInfoResponse(BaseSerializerModel):
     name: str
     email: str
     phone_number: str
+    profile_image_url: str | None
     birthday: date
     gender: Gender
     role: UserRole

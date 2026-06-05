@@ -1,7 +1,11 @@
-from fastapi import HTTPException
+from pathlib import Path
+from uuid import uuid4
+
+from fastapi import HTTPException, UploadFile
 from starlette import status
 from tortoise.transactions import in_transaction
 
+from app.core import config
 from app.core.utils.common import normalize_phone_number
 from app.core.utils.security import hash_password, verify_password
 from app.dtos.users import UserUpdateRequest
@@ -36,5 +40,36 @@ class UserManageService:
 
         async with in_transaction():
             await self.repo.update_instance(user=user, data=update_dict)
+            await user.refresh_from_db()
+        return user
+
+    async def update_profile_image(self, user: User, image: UploadFile) -> User:
+        if image.content_type not in {"image/jpeg", "image/png", "image/webp"}:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="JPG, PNG, WEBP 이미지만 업로드할 수 있습니다.",
+            )
+
+        contents = await image.read()
+        if len(contents) > 2 * 1024 * 1024:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail="이미지는 2MB 이하만 업로드할 수 있습니다."
+            )
+
+        extension = {
+            "image/jpeg": ".jpg",
+            "image/png": ".png",
+            "image/webp": ".webp",
+        }[image.content_type]
+        upload_dir = Path(config.MEDIA_DIR) / "profile-images"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+
+        filename = f"user-{user.id}-{uuid4().hex}{extension}"
+        file_path = upload_dir / filename
+        file_path.write_bytes(contents)
+
+        image_url = f"/media/profile-images/{filename}"
+        async with in_transaction():
+            await self.repo.update_instance(user=user, data={"profile_image_url": image_url})
             await user.refresh_from_db()
         return user

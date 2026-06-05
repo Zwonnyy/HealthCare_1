@@ -7,13 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import Navbar from "@/components/Navbar";
 import { userApi, UserInfo } from "@/lib/api";
-import { getToken } from "@/lib/auth";
+import { getToken, saveUser } from "@/lib/auth";
 
 export default function ProfilePage() {
   const router = useRouter();
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -58,12 +59,29 @@ export default function ProfilePage() {
         gender: form.gender as "MALE" | "FEMALE",
       });
       setUserInfo(updated.data);
+      saveUser(updated.data);
       toast.success("프로필을 수정했어요.");
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
       toast.error(msg ?? "수정에 실패했어요.");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleProfileImageChange(file: File | undefined) {
+    if (!file) return;
+    setUploadingImage(true);
+    try {
+      const updated = await userApi.uploadProfileImage(file);
+      setUserInfo(updated.data);
+      saveUser(updated.data);
+      toast.success("프로필 이미지를 변경했어요.");
+    } catch (err: unknown) {
+      const msg = (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail;
+      toast.error(msg ?? "이미지 업로드에 실패했어요.");
+    } finally {
+      setUploadingImage(false);
     }
   }
 
@@ -114,13 +132,31 @@ export default function ProfilePage() {
 
         <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 shadow-sm p-6">
           <div className="flex items-center gap-4 mb-6 pb-6 border-b border-zinc-100 dark:border-zinc-700">
-            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-2xl font-bold">
-              {userInfo?.name?.[0] ?? "?"}
-            </div>
+            {userInfo?.profile_image_url ? (
+              <img
+                src={`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}${userInfo.profile_image_url}`}
+                alt={`${userInfo.name} 프로필`}
+                className="w-16 h-16 rounded-full object-cover border border-zinc-200 dark:border-zinc-700"
+              />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-2xl font-bold">
+                {userInfo?.role === "DOCTOR" ? "의" : "환"}
+              </div>
+            )}
             <div>
               <p className="font-semibold text-zinc-900 dark:text-zinc-100 text-lg">{userInfo?.name}</p>
               <p className="text-sm text-zinc-500">{userInfo?.role === "DOCTOR" ? "🩺 의사" : "🧑 환자"}</p>
               <p className="text-xs text-zinc-400 mt-0.5">{userInfo?.email}</p>
+              <label className="mt-3 inline-flex cursor-pointer items-center rounded-md border border-zinc-200 dark:border-zinc-600 px-3 py-1.5 text-xs font-medium text-zinc-600 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-700">
+                {uploadingImage ? "업로드 중..." : "프로필 이미지 변경"}
+                <input
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  className="hidden"
+                  disabled={uploadingImage}
+                  onChange={(e) => handleProfileImageChange(e.target.files?.[0])}
+                />
+              </label>
             </div>
           </div>
 

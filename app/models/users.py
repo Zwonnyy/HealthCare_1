@@ -21,6 +21,7 @@ class User(models.Model):
     gender = fields.CharEnumField(enum_type=Gender)
     birthday = fields.DateField()
     phone_number = fields.CharField(max_length=11)
+    profile_image_url = fields.CharField(max_length=255, null=True)
     role = fields.CharEnumField(enum_type=UserRole, default=UserRole.PATIENT)
     is_active = fields.BooleanField(default=True)
     is_admin = fields.BooleanField(default=False)

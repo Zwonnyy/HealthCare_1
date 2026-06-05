@@ -54,6 +54,7 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
+  profile_image_url: string | null;
 }
 
 export interface Prescription {
@@ -123,6 +124,7 @@ export interface UserInfo {
   name: string;
   email: string;
   phone_number: string;
+  profile_image_url: string | null;
   birthday: string;
   gender: "MALE" | "FEMALE";
   role: UserRole;
@@ -141,6 +143,13 @@ export const userApi = {
     current_password?: string;
     new_password?: string;
   }) => api.patch<UserInfo>("/users/me", data),
+  uploadProfileImage: (file: File) => {
+    const formData = new FormData();
+    formData.append("image", file);
+    return api.post<UserInfo>("/users/me/profile-image", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  },
   searchPatients: (q: string) =>
     api.get<PatientSearchResult[]>("/users/patients/search", { params: { q } }),
   searchDoctors: (q: string) =>
@@ -492,4 +501,70 @@ export const reminderApi = {
   update: (id: number, data: { enabled?: boolean; reminder_time?: string; name?: string }) =>
     api.patch<MedicationReminder>(`/reminders/${id}`, data),
   delete: (id: number) => api.delete(`/reminders/${id}`),
+};
+
+// ── AI Health Insight Types ────────────────────────
+export interface RiskSignal {
+  label: string;
+  detail: string;
+  severity: number;
+}
+
+export interface HealthRisk {
+  risk_level: "낮음" | "주의" | "높음";
+  score: number;
+  summary: string;
+  signals: RiskSignal[];
+  recommendations: string[];
+}
+
+export interface MedicationAdherenceItem {
+  prescription_id: number;
+  medication_name: string;
+  expected_days: number;
+  checked_days: number;
+  adherence_rate: number;
+}
+
+export interface MedicationAdherence {
+  period_days: number;
+  overall_rate: number;
+  summary: string;
+  items: MedicationAdherenceItem[];
+}
+
+export interface PreVisitQuestionnaire {
+  id: number;
+  appointment_id: number;
+  patient_id: number;
+  symptoms: string;
+  onset: string | null;
+  severity: number | null;
+  medications: string | null;
+  history: string | null;
+  questions: string | null;
+  ai_summary: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export const healthInsightApi = {
+  risk: (days = 30) => api.get<HealthRisk>("/health-insights/risk", { params: { days } }),
+  medicationAdherence: (days = 30) =>
+    api.get<MedicationAdherence>("/health-insights/medication-adherence", { params: { days } }),
+  createPreVisit: (
+    appointmentId: number,
+    data: {
+      symptoms: string;
+      onset?: string;
+      severity?: number;
+      medications?: string;
+      history?: string;
+      questions?: string;
+    }
+  ) => api.post<PreVisitQuestionnaire>(`/health-insights/appointments/${appointmentId}/pre-visit`, data),
+  preVisits: (appointmentId?: number) =>
+    api.get<PreVisitQuestionnaire[]>("/health-insights/pre-visits", {
+      params: appointmentId ? { appointment_id: appointmentId } : undefined,
+    }),
 };

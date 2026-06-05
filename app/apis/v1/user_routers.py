@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 from fastapi.responses import ORJSONResponse as Response
 
 from app.dependencies.security import get_doctor_user, get_patient_user, get_request_user
@@ -26,6 +26,16 @@ async def update_user_me_info(
     user_manage_service: Annotated[UserManageService, Depends(UserManageService)],
 ) -> Response:
     updated_user = await user_manage_service.update_user(user=user, data=update_data)
+    return Response(UserInfoResponse.model_validate(updated_user).model_dump(), status_code=status.HTTP_200_OK)
+
+
+@user_router.post("/me/profile-image", response_model=UserInfoResponse, status_code=status.HTTP_200_OK)
+async def upload_profile_image(
+    user: Annotated[User, Depends(get_request_user)],
+    user_manage_service: Annotated[UserManageService, Depends(UserManageService)],
+    image: Annotated[UploadFile, File()],
+) -> Response:
+    updated_user = await user_manage_service.update_profile_image(user=user, image=image)
     return Response(UserInfoResponse.model_validate(updated_user).model_dump(), status_code=status.HTTP_200_OK)
 
 

@@ -43,15 +43,15 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2">
+    <div className="min-h-screen grid bg-white dark:bg-zinc-950 lg:grid-cols-2">
       {/* 왼쪽 브랜딩 */}
-      <div className="hidden lg:flex flex-col justify-between bg-blue-700 text-white p-12">
+      <div className="hidden lg:flex flex-col justify-between bg-blue-700 text-white p-12 dark:border-r dark:border-zinc-800 dark:bg-[radial-gradient(circle_at_25%_20%,rgba(37,99,235,0.35),transparent_32%),linear-gradient(135deg,#09090b,#111827_58%,#0f172a)]">
         <div className="text-2xl font-bold tracking-tight">💊 MediGuide AI</div>
         <div className="space-y-4">
           <h1 className="text-4xl font-bold leading-tight">
             지금 시작하세요
           </h1>
-          <ul className="space-y-3 text-blue-100 text-base">
+          <ul className="space-y-3 text-blue-100 text-base dark:text-zinc-300">
             <li className="flex items-start gap-3">
               <span className="mt-0.5">🩺</span>
               <span><b className="text-white">의사</b> — 진료 기록과 처방을 등록하고 환자에게 공유</span>
@@ -62,7 +62,7 @@ export default function SignupPage() {
             </li>
           </ul>
         </div>
-        <p className="text-blue-300 text-xs">※ 이 서비스는 참고용이며 실제 의료 결정은 의사와 상담하세요.</p>
+        <p className="text-blue-100 text-xs dark:text-zinc-400">※ 이 서비스는 참고용이며 실제 의료 결정은 의사와 상담하세요.</p>
       </div>
 
       {/* 오른쪽 폼 */}
@@ -135,9 +135,9 @@ export default function SignupPage() {
             </Button>
           </form>
 
-          <p className="text-center text-sm text-zinc-500">
+          <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
             이미 계정이 있으신가요?{" "}
-            <Link href="/login" className="text-blue-600 hover:underline font-medium">로그인</Link>
+            <Link href="/login" className="text-blue-600 hover:underline font-medium dark:text-blue-400">로그인</Link>
           </p>
         </div>
       </div>

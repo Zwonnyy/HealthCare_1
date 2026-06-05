@@ -33,20 +33,20 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2">
+    <div className="min-h-screen grid bg-white dark:bg-zinc-950 lg:grid-cols-2">
       {/* 왼쪽 브랜딩 패널 */}
-      <div className="hidden lg:flex flex-col justify-between bg-blue-700 text-white p-12">
+      <div className="hidden lg:flex flex-col justify-between bg-blue-700 text-white p-12 dark:border-r dark:border-zinc-800 dark:bg-[radial-gradient(circle_at_25%_20%,rgba(37,99,235,0.35),transparent_32%),linear-gradient(135deg,#09090b,#111827_58%,#0f172a)]">
         <div className="text-2xl font-bold tracking-tight">💊 MediGuide AI</div>
         <div className="space-y-4">
           <h1 className="text-4xl font-bold leading-tight">
             진료 기록 기반<br />AI 복약 안내 시스템
           </h1>
-          <p className="text-blue-200 text-lg leading-relaxed">
+          <p className="text-blue-100 text-lg leading-relaxed dark:text-zinc-300">
             처방 약물 정보와 생활습관 개선 가이드를<br />
             Claude AI가 자동으로 생성해드립니다.
           </p>
         </div>
-        <div className="flex gap-6 text-sm text-blue-200">
+        <div className="flex gap-6 text-sm text-blue-100 dark:text-blue-200">
           <span>✓ AI 복약 안내</span>
           <span>✓ 생활습관 가이드</span>
           <span>✓ 실시간 생성</span>
@@ -90,9 +90,9 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <p className="text-center text-sm text-zinc-500">
+          <p className="text-center text-sm text-zinc-500 dark:text-zinc-400">
             계정이 없으신가요?{" "}
-            <Link href="/signup" className="text-blue-600 hover:underline font-medium">
+            <Link href="/signup" className="text-blue-600 hover:underline font-medium dark:text-blue-400">
               회원가입
             </Link>
           </p>

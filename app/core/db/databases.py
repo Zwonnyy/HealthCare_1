@@ -21,6 +21,7 @@ TORTOISE_APP_MODELS = [
     "app.models.vitals",
     "app.models.symptom_checks",
     "app.models.medication_reminders",
+    "app.models.pre_visit_questionnaires",
 ]
 
 TORTOISE_ORM = {

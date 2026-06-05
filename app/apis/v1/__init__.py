@@ -6,6 +6,7 @@ from app.apis.v1.chat_routers import chat_router
 from app.apis.v1.drug_interaction_routers import drug_interaction_router
 from app.apis.v1.guide_routers import guide_router
 from app.apis.v1.health_goal_routers import health_goal_router
+from app.apis.v1.health_insight_routers import health_insight_router
 from app.apis.v1.health_log_routers import health_log_router
 from app.apis.v1.health_report_routers import health_report_router
 from app.apis.v1.medication_check_routers import medication_check_router
@@ -27,6 +28,7 @@ v1_routers.include_router(drug_interaction_router)
 v1_routers.include_router(guide_router)
 v1_routers.include_router(health_log_router)
 v1_routers.include_router(health_goal_router)
+v1_routers.include_router(health_insight_router)
 v1_routers.include_router(message_router)
 v1_routers.include_router(notification_router)
 v1_routers.include_router(stats_router)
