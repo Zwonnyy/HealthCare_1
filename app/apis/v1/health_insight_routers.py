@@ -25,6 +25,7 @@ async def get_health_risk(
     days: Annotated[int, Query(ge=7, le=90)] = 30,
 ) -> Response:
     result = await service.assess_risk(patient=patient, days=days)
+    await service.notify_risk_alerts(patient=patient, risk=result)
     return Response(result.model_dump(), status_code=status.HTTP_200_OK)
 
 

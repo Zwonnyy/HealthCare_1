@@ -239,7 +239,8 @@ export type NotificationType =
   | "ANALYSIS_COMPLETED"
   | "APPOINTMENT_REQUESTED"
   | "APPOINTMENT_CONFIRMED"
-  | "MEDICATION_REMINDER";
+  | "MEDICATION_REMINDER"
+  | "HEALTH_RISK_ALERT";
 
 export interface Notification {
   id: number;

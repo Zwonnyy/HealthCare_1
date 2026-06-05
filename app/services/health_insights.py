@@ -1,6 +1,6 @@
 import json
 import logging
-from datetime import date, datetime, time, timedelta
+from datetime import UTC, date, datetime, time, timedelta
 
 from fastapi import HTTPException
 from google import genai
@@ -21,6 +21,7 @@ from app.dtos.health_insights import (
 from app.models.appointments import Appointment
 from app.models.health_logs import HealthLog, Mood
 from app.models.medication_checks import MedicationCheck
+from app.models.notifications import Notification, NotificationType
 from app.models.pre_visit_questionnaires import PreVisitQuestionnaire
 from app.models.records import MedicalRecord, Prescription
 from app.models.symptom_checks import SymptomCheck, UrgencyLevel
@@ -109,6 +110,26 @@ class HealthInsightService:
             signals=signals,
             recommendations=recommendations,
         )
+
+    async def notify_risk_alerts(self, patient: User, risk: HealthRiskResponse) -> int:
+        if risk.risk_level == "낮음":
+            return 0
+
+        title = f"건강 리스크 {risk.risk_level} 알림"
+        body = f"{patient.name}님의 {risk.summary} 주요 신호: {_format_risk_signal_summary(risk)}"
+        recipients = {patient.id, *await _related_doctor_ids(patient.id)}
+        created = 0
+        for user_id in recipients:
+            if await _has_recent_risk_alert(user_id=user_id, title=title):
+                continue
+            await Notification.create(
+                user_id=user_id,
+                notification_type=NotificationType.HEALTH_RISK_ALERT,
+                title=title,
+                body=body,
+            )
+            created += 1
+        return created
 
     async def medication_adherence(self, patient: User, days: int = 30) -> MedicationAdherenceResponse:
         today = date.today()
@@ -342,6 +363,30 @@ def _format_vital_summary(vital: VitalRecord) -> str:
     if vital.weight is not None:
         parts.append(f"체중 {vital.weight:g}kg")
     return ", ".join(parts) or vital.notes or "입력된 바이탈 기록"
+
+
+async def _related_doctor_ids(patient_id: int) -> list[int]:
+    record_doctor_ids = await MedicalRecord.filter(patient_id=patient_id).distinct().values_list("doctor_id", flat=True)
+    appointment_doctor_ids = await Appointment.filter(patient_id=patient_id).distinct().values_list(
+        "doctor_id", flat=True
+    )
+    return list({*record_doctor_ids, *appointment_doctor_ids})
+
+
+async def _has_recent_risk_alert(user_id: int, title: str) -> bool:
+    since = datetime.now(tz=UTC) - timedelta(hours=24)
+    return await Notification.filter(
+        user_id=user_id,
+        notification_type=NotificationType.HEALTH_RISK_ALERT,
+        title=title,
+        created_at__gte=since,
+    ).exists()
+
+
+def _format_risk_signal_summary(risk: HealthRiskResponse) -> str:
+    if not risk.signals:
+        return "세부 신호 없음"
+    return ", ".join(f"{signal.label}({signal.detail})" for signal in risk.signals[:3])
 
 
 async def _summarize_pre_visit(data: PreVisitQuestionnaireCreateRequest) -> str:
