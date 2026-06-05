@@ -15,6 +15,8 @@ from app.dtos.health_insights import (
     MedicationAdherenceResponse,
     MedicationPatternDay,
     MedicationPatternResponse,
+    PatientRiskQueueItem,
+    PatientRiskQueueResponse,
     PatientTimelineItem,
     PatientTimelineResponse,
     PreVisitQuestionnaireCreateRequest,
@@ -132,6 +134,34 @@ class HealthInsightService:
             )
             created += 1
         return created
+
+    async def patient_risk_queue(self, doctor: User, days: int = 30) -> PatientRiskQueueResponse:
+        patient_ids = await _doctor_patient_ids(doctor.id)
+        patients = await User.filter(id__in=patient_ids).order_by("name")
+        items = []
+        for patient in patients:
+            risk = await self.assess_risk(patient=patient, days=days)
+            last_activity_at = await _last_patient_activity_at(patient.id)
+            items.append(
+                PatientRiskQueueItem(
+                    patient_id=patient.id,
+                    patient_name=patient.name,
+                    risk_level=risk.risk_level,
+                    score=risk.score,
+                    summary=risk.summary,
+                    signals=risk.signals,
+                    last_activity_at=last_activity_at,
+                )
+            )
+
+        items.sort(key=lambda item: (_risk_sort_weight(item.risk_level), item.score), reverse=True)
+        return PatientRiskQueueResponse(
+            period_days=days,
+            total=len(items),
+            high_count=sum(1 for item in items if item.risk_level == "높음"),
+            caution_count=sum(1 for item in items if item.risk_level == "주의"),
+            items=items,
+        )
 
     async def medication_adherence(self, patient: User, days: int = 30) -> MedicationAdherenceResponse:
         today = date.today()
@@ -409,6 +439,39 @@ async def _related_doctor_ids(patient_id: int) -> list[int]:
         await Appointment.filter(patient_id=patient_id).distinct().values_list("doctor_id", flat=True)
     )
     return list({*record_doctor_ids, *appointment_doctor_ids})
+
+
+async def _doctor_patient_ids(doctor_id: int) -> list[int]:
+    record_patient_ids = await MedicalRecord.filter(doctor_id=doctor_id).distinct().values_list("patient_id", flat=True)
+    appointment_patient_ids = (
+        await Appointment.filter(doctor_id=doctor_id).distinct().values_list("patient_id", flat=True)
+    )
+    return list({*record_patient_ids, *appointment_patient_ids})
+
+
+async def _last_patient_activity_at(patient_id: int) -> datetime | None:
+    candidates: list[datetime] = []
+    latest_record = await MedicalRecord.filter(patient_id=patient_id).order_by("-visited_at").first()
+    latest_vital = await VitalRecord.filter(patient_id=patient_id).order_by("-recorded_at").first()
+    latest_symptom = await SymptomCheck.filter(patient_id=patient_id).order_by("-created_at").first()
+    latest_pre_visit = await PreVisitQuestionnaire.filter(patient_id=patient_id).order_by("-created_at").first()
+    latest_log = await HealthLog.filter(patient_id=patient_id).order_by("-log_date").first()
+
+    if latest_record:
+        candidates.append(latest_record.visited_at)
+    if latest_vital:
+        candidates.append(latest_vital.recorded_at)
+    if latest_symptom:
+        candidates.append(latest_symptom.created_at)
+    if latest_pre_visit:
+        candidates.append(latest_pre_visit.created_at)
+    if latest_log:
+        candidates.append(datetime.combine(latest_log.log_date, time.min))
+    return max(candidates) if candidates else None
+
+
+def _risk_sort_weight(risk_level: str) -> int:
+    return {"높음": 3, "주의": 2, "낮음": 1}.get(risk_level, 0)
 
 
 async def _has_recent_risk_alert(user_id: int, title: str) -> bool:

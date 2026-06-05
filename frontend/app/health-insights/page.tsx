@@ -17,6 +17,8 @@ import {
   type HealthRisk,
   type MedicationAdherence,
   type MedicationPattern,
+  type PatientRiskQueue,
+  type PatientRiskQueueItem,
   type PatientSearchResult,
   type PatientTimeline,
   type PreVisitQuestionnaire,
@@ -47,6 +49,7 @@ export default function HealthInsightsPage() {
   const [preVisits, setPreVisits] = useState<PreVisitQuestionnaire[]>([]);
   const [patientQuery, setPatientQuery] = useState("");
   const [patientResults, setPatientResults] = useState<PatientSearchResult[]>([]);
+  const [riskQueue, setRiskQueue] = useState<PatientRiskQueue | null>(null);
   const [timeline, setTimeline] = useState<PatientTimeline | null>(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
   const [drafts, setDrafts] = useState<Record<number, ClinicalNoteDraft>>({});
@@ -78,7 +81,7 @@ export default function HealthInsightsPage() {
             appointmentApi.list(1, 50),
             healthInsightApi.preVisits(),
           ]
-        : [healthInsightApi.preVisits()];
+        : [healthInsightApi.preVisits(), healthInsightApi.riskQueue()];
 
     Promise.all(requests)
       .then((responses) => {
@@ -90,6 +93,7 @@ export default function HealthInsightsPage() {
           setPreVisits(responses[4].data as PreVisitQuestionnaire[]);
         } else {
           setPreVisits(responses[0].data as PreVisitQuestionnaire[]);
+          setRiskQueue(responses[1].data as PatientRiskQueue);
         }
       })
       .catch(() => toast.error("AI 인사이트 데이터를 불러오지 못했어요."))
@@ -120,6 +124,10 @@ export default function HealthInsightsPage() {
     } finally {
       setTimelineLoading(false);
     }
+  }
+
+  async function loadRiskQueuePatient(patient: PatientRiskQueueItem) {
+    await loadTimeline({ id: patient.patient_id, name: patient.patient_name, email: "" });
   }
 
   async function handleCreateDraft(preVisitId: number) {
@@ -182,6 +190,46 @@ export default function HealthInsightsPage() {
         </div>
 
         {loading && <div className="h-48 rounded-lg bg-zinc-200 dark:bg-zinc-800 animate-pulse" />}
+
+        {!loading && user?.role === "DOCTOR" && (
+          <section className="bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-lg p-5 mb-8">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div>
+                <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">환자 위험도 큐</h2>
+                <p className="text-xs text-zinc-400 mt-1">최근 {riskQueue?.period_days ?? 30}일 건강 기록 기준</p>
+              </div>
+              <div className="flex gap-2 text-xs">
+                <span className="rounded-full bg-red-50 text-red-600 px-3 py-1 font-semibold">높음 {riskQueue?.high_count ?? 0}</span>
+                <span className="rounded-full bg-amber-50 text-amber-600 px-3 py-1 font-semibold">주의 {riskQueue?.caution_count ?? 0}</span>
+                <span className="rounded-full bg-zinc-100 text-zinc-500 px-3 py-1 font-semibold">전체 {riskQueue?.total ?? 0}</span>
+              </div>
+            </div>
+            {riskQueue?.items.length === 0 && <p className="text-sm text-zinc-400">담당 환자 위험도 데이터가 없습니다.</p>}
+            {riskQueue && riskQueue.items.length > 0 && (
+              <div className="grid md:grid-cols-2 gap-3">
+                {riskQueue.items.slice(0, 8).map((item) => (
+                  <button
+                    key={item.patient_id}
+                    type="button"
+                    onClick={() => loadRiskQueuePatient(item)}
+                    className="rounded-md border border-zinc-100 dark:border-zinc-700 p-4 text-left hover:bg-zinc-50 dark:hover:bg-zinc-900 transition-colors"
+                  >
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <p className="font-semibold text-zinc-900 dark:text-zinc-100">{item.patient_name}</p>
+                      <span className={`rounded-full border px-2 py-0.5 text-xs font-semibold ${riskColor[item.risk_level]}`}>
+                        {item.risk_level} · {item.score}점
+                      </span>
+                    </div>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-300">{item.summary}</p>
+                    <p className="mt-2 text-xs text-zinc-400">
+                      최근 활동 {item.last_activity_at ? new Date(item.last_activity_at).toLocaleString("ko-KR") : "없음"}
+                    </p>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {!loading && user?.role === "DOCTOR" && (
           <section className="bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-lg p-5 mb-8">

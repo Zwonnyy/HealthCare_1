@@ -9,6 +9,7 @@ from app.dtos.health_insights import (
     HealthRiskResponse,
     MedicationAdherenceResponse,
     MedicationPatternResponse,
+    PatientRiskQueueResponse,
     PatientTimelineResponse,
     PreVisitQuestionnaireCreateRequest,
     PreVisitQuestionnaireResponse,
@@ -51,6 +52,16 @@ async def get_medication_patterns(
     days: Annotated[int, Query(ge=7, le=90)] = 30,
 ) -> Response:
     result = await service.medication_patterns(patient=patient, days=days)
+    return Response(result.model_dump(), status_code=status.HTTP_200_OK)
+
+
+@health_insight_router.get("/risk-queue", response_model=PatientRiskQueueResponse, status_code=status.HTTP_200_OK)
+async def get_patient_risk_queue(
+    doctor: Annotated[User, Depends(get_doctor_user)],
+    service: Annotated[HealthInsightService, Depends(HealthInsightService)],
+    days: Annotated[int, Query(ge=7, le=90)] = 30,
+) -> Response:
+    result = await service.patient_risk_queue(doctor=doctor, days=days)
     return Response(result.model_dump(), status_code=status.HTTP_200_OK)
 
 

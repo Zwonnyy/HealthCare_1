@@ -19,6 +19,24 @@ class HealthRiskResponse(BaseModel):
     recommendations: list[str]
 
 
+class PatientRiskQueueItem(BaseModel):
+    patient_id: int
+    patient_name: str
+    risk_level: str
+    score: int
+    summary: str
+    signals: list[RiskSignal]
+    last_activity_at: datetime | None
+
+
+class PatientRiskQueueResponse(BaseModel):
+    period_days: int
+    total: int
+    high_count: int
+    caution_count: int
+    items: list[PatientRiskQueueItem]
+
+
 class MedicationAdherenceItem(BaseModel):
     prescription_id: int
     medication_name: str

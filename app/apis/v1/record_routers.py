@@ -10,6 +10,7 @@ from app.dtos.health_logs import HealthLogResponse
 from app.dtos.messages import MessageResponse
 from app.dtos.pagination import PaginatedResponse, PaginationParams
 from app.dtos.records import (
+    ActionPlanResponse,
     MedicalRecordCreateRequest,
     MedicalRecordResponse,
     MedicalRecordUpdateRequest,
@@ -175,3 +176,13 @@ async def get_record_messages(
 ) -> Response:
     messages = await message_service.get_record_messages(user=user, record_id=record_id)
     return Response([MessageResponse.model_validate(m).model_dump() for m in messages], status_code=status.HTTP_200_OK)
+
+
+@record_router.get("/{record_id}/action-plan", response_model=ActionPlanResponse, status_code=status.HTTP_200_OK)
+async def get_record_action_plan(
+    record_id: int,
+    user: Annotated[User, Depends(get_request_user)],
+    record_service: Annotated[MedicalRecordService, Depends(MedicalRecordService)],
+) -> Response:
+    action_plan = await record_service.action_plan(user=user, record_id=record_id)
+    return Response(action_plan.model_dump(), status_code=status.HTTP_200_OK)

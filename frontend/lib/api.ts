@@ -78,6 +78,22 @@ export interface MedicalRecord {
   prescriptions: Prescription[];
 }
 
+export interface ActionPlanItem {
+  category: string;
+  title: string;
+  detail: string;
+  due_label: string;
+  priority: string;
+}
+
+export interface ActionPlan {
+  record_id: number;
+  patient_id: number;
+  title: string;
+  summary: string;
+  items: ActionPlanItem[];
+}
+
 export interface Guide {
   id: number;
   record_id: number;
@@ -180,6 +196,7 @@ export const recordApi = {
   }) => api.post<MedicalRecord>("/records", data),
   update: (id: number, data: { diagnosis?: string; symptoms?: string; notes?: string }) =>
     api.patch<MedicalRecord>(`/records/${id}`, data),
+  actionPlan: (id: number) => api.get<ActionPlan>(`/records/${id}/action-plan`),
   requestGuide: (recordId: number) =>
     api.post<Guide>(`/records/${recordId}/guides`),
   getGuides: (recordId: number) =>
@@ -529,6 +546,24 @@ export interface HealthRisk {
   recommendations: string[];
 }
 
+export interface PatientRiskQueueItem {
+  patient_id: number;
+  patient_name: string;
+  risk_level: "낮음" | "주의" | "높음";
+  score: number;
+  summary: string;
+  signals: RiskSignal[];
+  last_activity_at: string | null;
+}
+
+export interface PatientRiskQueue {
+  period_days: number;
+  total: number;
+  high_count: number;
+  caution_count: number;
+  items: PatientRiskQueueItem[];
+}
+
 export interface MedicationAdherenceItem {
   prescription_id: number;
   medication_name: string;
@@ -603,6 +638,7 @@ export interface ClinicalNoteDraft {
 
 export const healthInsightApi = {
   risk: (days = 30) => api.get<HealthRisk>("/health-insights/risk", { params: { days } }),
+  riskQueue: (days = 30) => api.get<PatientRiskQueue>("/health-insights/risk-queue", { params: { days } }),
   medicationAdherence: (days = 30) =>
     api.get<MedicationAdherence>("/health-insights/medication-adherence", { params: { days } }),
   medicationPatterns: (days = 30) =>

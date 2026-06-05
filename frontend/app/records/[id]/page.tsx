@@ -9,7 +9,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import Navbar from "@/components/Navbar";
-import { recordApi, medicationCheckApi, drugInteractionApi, MedicalRecord, Guide, TodayMedication, DrugInteraction } from "@/lib/api";
+import {
+  recordApi,
+  medicationCheckApi,
+  drugInteractionApi,
+  MedicalRecord,
+  Guide,
+  TodayMedication,
+  DrugInteraction,
+  ActionPlan,
+} from "@/lib/api";
 import { getToken, getUser } from "@/lib/auth";
 
 const statusConfig: Record<string, { label: string; color: string; icon: string }> = {
@@ -24,6 +33,7 @@ export default function RecordDetailPage() {
   const router = useRouter();
   const [user, setUser] = useState<ReturnType<typeof getUser>>(null);
   const [record, setRecord] = useState<MedicalRecord | null>(null);
+  const [actionPlan, setActionPlan] = useState<ActionPlan | null>(null);
   const [guides, setGuides] = useState<Guide[]>([]);
   const [requesting, setRequesting] = useState(false);
 
@@ -52,6 +62,7 @@ export default function RecordDetailPage() {
       })
       .catch(() => { toast.error("기록을 찾을 수 없어요."); router.push("/records"); });
     loadGuides();
+    recordApi.actionPlan(Number(id)).then(({ data }) => setActionPlan(data)).catch(() => {});
     if (getUser()?.role === "PATIENT") {
       medicationCheckApi.today().then(({ data }) => setTodayMeds(data)).catch(() => {});
     }
@@ -206,6 +217,41 @@ export default function RecordDetailPage() {
             </div>
           </div>
         </div>
+
+        {actionPlan && (
+          <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 shadow-sm p-6">
+            <div className="flex items-start justify-between gap-3 mb-5">
+              <div>
+                <h2 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">{actionPlan.title}</h2>
+                <p className="text-xs text-zinc-400 mt-1">{actionPlan.summary}</p>
+              </div>
+              <span className="rounded-full bg-blue-50 dark:bg-blue-900/30 px-3 py-1 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                {actionPlan.items.length}개 할 일
+              </span>
+            </div>
+            <div className="space-y-3">
+              {actionPlan.items.map((item) => (
+                <article key={`${item.category}-${item.title}`} className="rounded-lg border border-zinc-100 dark:border-zinc-700 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <span className="rounded-full bg-zinc-100 dark:bg-zinc-700 px-2 py-0.5 text-xs font-semibold text-zinc-600 dark:text-zinc-300">
+                        {item.category}
+                      </span>
+                      <p className="font-semibold text-zinc-900 dark:text-zinc-100">{item.title}</p>
+                    </div>
+                    <div className="flex gap-2 text-xs">
+                      <span className="text-zinc-400">{item.due_label}</span>
+                      <span className={item.priority === "높음" ? "text-red-500 font-semibold" : "text-amber-500 font-semibold"}>
+                        {item.priority}
+                      </span>
+                    </div>
+                  </div>
+                  <p className="text-sm text-zinc-600 dark:text-zinc-300">{item.detail}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        )}
 
         {user?.role === "PATIENT" && todayMeds.length > 0 && (
           <div className="bg-white dark:bg-zinc-800 rounded-2xl border border-zinc-100 dark:border-zinc-700 shadow-sm p-6">

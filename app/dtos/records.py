@@ -48,3 +48,19 @@ class MedicalRecordResponse(BaseModel):
     visited_at: datetime
     created_at: datetime
     prescriptions: list[PrescriptionResponse] = []
+
+
+class ActionPlanItem(BaseModel):
+    category: str
+    title: str
+    detail: str
+    due_label: str
+    priority: str
+
+
+class ActionPlanResponse(BaseModel):
+    record_id: int
+    patient_id: int
+    title: str
+    summary: str
+    items: list[ActionPlanItem]
