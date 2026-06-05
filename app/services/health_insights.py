@@ -1,3 +1,4 @@
+import json
 import logging
 from datetime import date, datetime, time, timedelta
 
@@ -8,6 +9,7 @@ from starlette import status
 
 from app.core import config
 from app.dtos.health_insights import (
+    ClinicalNoteDraftResponse,
     HealthRiskResponse,
     MedicationAdherenceItem,
     MedicationAdherenceResponse,
@@ -30,6 +32,11 @@ logger = logging.getLogger(__name__)
 _PRE_VISIT_SYSTEM = (
     "당신은 진료 전 문진 내용을 의사가 빠르게 볼 수 있도록 정리하는 의료 보조 AI입니다. "
     "진단을 내리지 말고, 확인해야 할 질문과 위험 신호를 한국어로 간결하게 요약하세요."
+)
+
+_CLINICAL_NOTE_SYSTEM = (
+    "당신은 의사의 진료기록 작성을 돕는 의료 문서 보조 AI입니다. "
+    "확정 진단을 내리지 말고 환자 문진 내용에 근거한 SOAP 형식 초안을 한국어로 작성하세요."
 )
 
 
@@ -213,6 +220,17 @@ class HealthInsightService:
             items=items[:100],
         )
 
+    async def clinical_note_draft(self, doctor: User, pre_visit_id: int) -> ClinicalNoteDraftResponse:
+        pre_visit = await PreVisitQuestionnaire.get_or_none(id=pre_visit_id)
+        if not pre_visit:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="문진을 찾을 수 없습니다.")
+
+        appointment = await pre_visit.appointment
+        if appointment.doctor_id != doctor.id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="접근 권한이 없습니다.")
+
+        return await _generate_clinical_note_draft(pre_visit)
+
 
 async def _record_timeline_items(doctor_id: int, patient_id: int, since: datetime) -> list[PatientTimelineItem]:
     records = await MedicalRecord.filter(
@@ -349,3 +367,68 @@ async def _summarize_pre_visit(data: PreVisitQuestionnaireCreateRequest) -> str:
     except Exception as e:
         logger.warning("Pre-visit summary failed: %s", e)
         return fallback
+
+
+async def _generate_clinical_note_draft(pre_visit: PreVisitQuestionnaire) -> ClinicalNoteDraftResponse:
+    fallback = _fallback_clinical_note_draft(pre_visit)
+    prompt = (
+        f"주요 증상: {pre_visit.symptoms}\n"
+        f"시작 시점: {pre_visit.onset or '미입력'}\n"
+        f"심각도: {pre_visit.severity if pre_visit.severity is not None else '미입력'} / 10\n"
+        f"복용약: {pre_visit.medications or '미입력'}\n"
+        f"과거력: {pre_visit.history or '미입력'}\n"
+        f"환자 질문: {pre_visit.questions or '미입력'}\n"
+        f"기존 AI 요약: {pre_visit.ai_summary or '없음'}\n\n"
+        "아래 JSON 형식만 반환하세요. "
+        '{"diagnosis_hint": "...", "symptoms": "...", "soap_note": "...", "follow_up_questions": ["...", "..."]}'
+    )
+    try:
+        client = genai.Client(api_key=config.GEMINI_API_KEY)
+        response = await client.aio.models.generate_content(
+            model="gemini-flash-latest",
+            config=types.GenerateContentConfig(system_instruction=_CLINICAL_NOTE_SYSTEM),
+            contents=prompt,
+        )
+        parsed = json.loads((response.text or "").strip().removeprefix("```json").removesuffix("```").strip())
+        return ClinicalNoteDraftResponse(
+            pre_visit_id=pre_visit.id,
+            appointment_id=pre_visit.appointment_id,
+            patient_id=pre_visit.patient_id,
+            diagnosis_hint=str(parsed.get("diagnosis_hint") or fallback.diagnosis_hint),
+            symptoms=str(parsed.get("symptoms") or fallback.symptoms),
+            soap_note=str(parsed.get("soap_note") or fallback.soap_note),
+            follow_up_questions=[
+                str(item) for item in parsed.get("follow_up_questions", fallback.follow_up_questions)
+            ][:6],
+        )
+    except Exception as e:
+        logger.warning("Clinical note draft failed: %s", e)
+        return fallback
+
+
+def _fallback_clinical_note_draft(pre_visit: PreVisitQuestionnaire) -> ClinicalNoteDraftResponse:
+    follow_up_questions = [
+        "증상이 악화되거나 완화되는 상황이 있나요?",
+        "동반 증상이나 최근 생활 변화가 있었나요?",
+        "복용 중인 약의 효과나 부작용을 느꼈나요?",
+    ]
+    if pre_visit.questions:
+        follow_up_questions.insert(0, f"환자 질문 확인: {pre_visit.questions}")
+
+    soap_note = (
+        f"S: {pre_visit.symptoms}\n"
+        f"O: 진료 전 문진 기준 심각도 {pre_visit.severity if pre_visit.severity is not None else '미입력'} / 10, "
+        f"시작 시점 {pre_visit.onset or '미입력'}.\n"
+        f"A: 문진 정보 기반 감별이 필요하며 확정 진단 전 추가 문진과 진찰이 필요합니다.\n"
+        f"P: 과거력({pre_visit.history or '미입력'}), 복용약({pre_visit.medications or '미입력'})을 확인하고 "
+        "필요 시 검사 및 추적 관찰 계획을 수립합니다."
+    )
+    return ClinicalNoteDraftResponse(
+        pre_visit_id=pre_visit.id,
+        appointment_id=pre_visit.appointment_id,
+        patient_id=pre_visit.patient_id,
+        diagnosis_hint="문진 기반 감별 필요",
+        symptoms=pre_visit.symptoms,
+        soap_note=soap_note,
+        follow_up_questions=follow_up_questions[:6],
+    )

@@ -13,6 +13,7 @@ import {
   healthInsightApi,
   userApi,
   type Appointment,
+  type ClinicalNoteDraft,
   type HealthRisk,
   type MedicationAdherence,
   type PatientSearchResult,
@@ -46,6 +47,8 @@ export default function HealthInsightsPage() {
   const [patientResults, setPatientResults] = useState<PatientSearchResult[]>([]);
   const [timeline, setTimeline] = useState<PatientTimeline | null>(null);
   const [timelineLoading, setTimelineLoading] = useState(false);
+  const [drafts, setDrafts] = useState<Record<number, ClinicalNoteDraft>>({});
+  const [draftingId, setDraftingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
@@ -112,6 +115,19 @@ export default function HealthInsightsPage() {
       toast.error("환자 타임라인을 불러오지 못했어요.");
     } finally {
       setTimelineLoading(false);
+    }
+  }
+
+  async function handleCreateDraft(preVisitId: number) {
+    setDraftingId(preVisitId);
+    try {
+      const { data } = await healthInsightApi.clinicalNoteDraft(preVisitId);
+      setDrafts((prev) => ({ ...prev, [preVisitId]: data }));
+      toast.success("진료 메모 초안을 생성했어요.");
+    } catch {
+      toast.error("진료 메모 초안 생성에 실패했어요.");
+    } finally {
+      setDraftingId(null);
     }
   }
 
@@ -344,6 +360,35 @@ export default function HealthInsightsPage() {
                     <p className="text-xs text-zinc-400">{new Date(item.created_at).toLocaleString("ko-KR")}</p>
                   </div>
                   <p className="text-sm text-zinc-600 dark:text-zinc-300 whitespace-pre-line">{item.ai_summary}</p>
+                  {user?.role === "DOCTOR" && (
+                    <div className="mt-4">
+                      <Button
+                        variant="outline"
+                        onClick={() => handleCreateDraft(item.id)}
+                        disabled={draftingId === item.id}
+                      >
+                        {draftingId === item.id ? "생성 중..." : "진료 메모 초안 생성"}
+                      </Button>
+                      {drafts[item.id] && (
+                        <div className="mt-4 rounded-md bg-zinc-50 dark:bg-zinc-900 p-4">
+                          <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+                            {drafts[item.id].diagnosis_hint}
+                          </p>
+                          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300 whitespace-pre-line">
+                            {drafts[item.id].soap_note}
+                          </p>
+                          <div className="mt-3">
+                            <p className="text-xs font-semibold text-zinc-500">추가 확인 질문</p>
+                            <ul className="mt-1 space-y-1 text-xs text-zinc-500">
+                              {drafts[item.id].follow_up_questions.map((question) => (
+                                <li key={question}>{question}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </article>
               ))}
             </div>

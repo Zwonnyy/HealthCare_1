@@ -72,3 +72,13 @@ class PatientTimelineResponse(BaseModel):
     patient_name: str
     period_days: int
     items: list[PatientTimelineItem]
+
+
+class ClinicalNoteDraftResponse(BaseModel):
+    pre_visit_id: int
+    appointment_id: int
+    patient_id: int
+    diagnosis_hint: str
+    symptoms: str
+    soap_note: str
+    follow_up_questions: list[str]

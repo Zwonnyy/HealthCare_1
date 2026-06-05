@@ -5,6 +5,7 @@ from fastapi.responses import ORJSONResponse as Response
 
 from app.dependencies.security import get_doctor_user, get_patient_user, get_request_user
 from app.dtos.health_insights import (
+    ClinicalNoteDraftResponse,
     HealthRiskResponse,
     MedicationAdherenceResponse,
     PatientTimelineResponse,
@@ -85,4 +86,18 @@ async def get_patient_timeline(
     days: Annotated[int, Query(ge=7, le=365)] = 90,
 ) -> Response:
     result = await service.patient_timeline(doctor=doctor, patient_id=patient_id, days=days)
+    return Response(result.model_dump(), status_code=status.HTTP_200_OK)
+
+
+@health_insight_router.post(
+    "/pre-visits/{pre_visit_id}/clinical-note-draft",
+    response_model=ClinicalNoteDraftResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def create_clinical_note_draft(
+    pre_visit_id: int,
+    doctor: Annotated[User, Depends(get_doctor_user)],
+    service: Annotated[HealthInsightService, Depends(HealthInsightService)],
+) -> Response:
+    result = await service.clinical_note_draft(doctor=doctor, pre_visit_id=pre_visit_id)
     return Response(result.model_dump(), status_code=status.HTTP_200_OK)

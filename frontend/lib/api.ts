@@ -564,6 +564,16 @@ export interface PatientTimeline {
   items: PatientTimelineItem[];
 }
 
+export interface ClinicalNoteDraft {
+  pre_visit_id: number;
+  appointment_id: number;
+  patient_id: number;
+  diagnosis_hint: string;
+  symptoms: string;
+  soap_note: string;
+  follow_up_questions: string[];
+}
+
 export const healthInsightApi = {
   risk: (days = 30) => api.get<HealthRisk>("/health-insights/risk", { params: { days } }),
   medicationAdherence: (days = 30) =>
@@ -585,4 +595,6 @@ export const healthInsightApi = {
     }),
   patientTimeline: (patientId: number, days = 90) =>
     api.get<PatientTimeline>(`/health-insights/patients/${patientId}/timeline`, { params: { days } }),
+  clinicalNoteDraft: (preVisitId: number) =>
+    api.post<ClinicalNoteDraft>(`/health-insights/pre-visits/${preVisitId}/clinical-note-draft`),
 };
