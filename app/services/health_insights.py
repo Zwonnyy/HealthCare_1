@@ -405,8 +405,8 @@ def _format_vital_summary(vital: VitalRecord) -> str:
 
 async def _related_doctor_ids(patient_id: int) -> list[int]:
     record_doctor_ids = await MedicalRecord.filter(patient_id=patient_id).distinct().values_list("doctor_id", flat=True)
-    appointment_doctor_ids = await Appointment.filter(patient_id=patient_id).distinct().values_list(
-        "doctor_id", flat=True
+    appointment_doctor_ids = (
+        await Appointment.filter(patient_id=patient_id).distinct().values_list("doctor_id", flat=True)
     )
     return list({*record_doctor_ids, *appointment_doctor_ids})
 
@@ -444,7 +444,9 @@ def _build_weekday_medication_stats(
     stats = []
     for weekday, name in enumerate(weekday_names):
         expected = sum(count for day, count in expected_by_day.items() if day.weekday() == weekday)
-        checked = sum(min(checked_by_day.get(day, 0), count) for day, count in expected_by_day.items() if day.weekday() == weekday)
+        checked = sum(
+            min(checked_by_day.get(day, 0), count) for day, count in expected_by_day.items() if day.weekday() == weekday
+        )
         missed = max(0, expected - checked)
         rate = round((checked / expected) * 100, 1) if expected else 0
         stats.append(
@@ -547,9 +549,9 @@ async def _generate_clinical_note_draft(pre_visit: PreVisitQuestionnaire) -> Cli
             diagnosis_hint=str(parsed.get("diagnosis_hint") or fallback.diagnosis_hint),
             symptoms=str(parsed.get("symptoms") or fallback.symptoms),
             soap_note=str(parsed.get("soap_note") or fallback.soap_note),
-            follow_up_questions=[
-                str(item) for item in parsed.get("follow_up_questions", fallback.follow_up_questions)
-            ][:6],
+            follow_up_questions=[str(item) for item in parsed.get("follow_up_questions", fallback.follow_up_questions)][
+                :6
+            ],
         )
     except Exception as e:
         logger.warning("Clinical note draft failed: %s", e)
