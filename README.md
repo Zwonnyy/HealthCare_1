@@ -13,12 +13,18 @@ AI 기반 의료 정보 서비스입니다. 의사가 진료 기록과 처방전
 | **바이탈 AI 이상 감지** | 혈압·혈당·심박수 입력 시 Gemini가 실시간으로 정상 범위 대비 이상 여부 판단 |
 | **약물 상호작용 검사** | 복용 약물 목록을 입력하면 RAG + Gemini로 상호작용 위험 분석 |
 | **복약 알림 스케줄러** | Celery Beat 매 분 체크 — 설정 시각에 자동 인앱 알림 발송 (하루 1회 보장) |
+| **AI 건강 인사이트** | 건강 리스크 예측, 복약 순응도, 복약 누락 패턴 분석을 한 화면에서 제공 |
+| **진료 전 AI 문진** | 환자가 예약 전 문진을 작성하면 Gemini가 의사용 요약과 SOAP 진료 메모 초안 생성 |
+| **의사용 환자 타임라인** | 진료기록·바이탈·건강일지·증상체크·문진 요약을 시간순으로 통합 조회 |
+| **위험 신호 자동 알림** | 건강 리스크가 주의/높음이면 환자와 담당 의사에게 중복 방지 알림 생성 |
 | **건강 일지 & AI 분석** | 매일 통증·기분·증상 기록, AI가 회복 추이 분석 |
+| **맞춤 건강 목표 추천** | 최근 바이탈·통증·복약 기록 기반으로 개인화 목표 추천 및 즉시 생성 |
 | **건강 리포트 PDF** | 월별 건강 리포트 브라우저 인쇄/PDF 저장 |
 | **예약 관리** | 환자가 의사에게 예약 요청, 의사가 확정/취소 처리 |
 | **통계 대시보드** | 통증 추이 차트(recharts), 기분 분포 차트, 바이탈 추이 시각화 |
 | **메시지 채널** | 의사-환자 간 진료 기반 메시지 주고받기 |
 | **알림 센터** | 새 메시지·예약·AI 가이드 완료 시 자동 인앱 알림 생성 |
+| **프로필 이미지 업로드** | JPG/PNG/WEBP 프로필 이미지를 업로드하고 Navbar·프로필 화면에 표시 |
 | **JWT 인증** | Access Token + Redis 기반 Refresh Token (로그아웃 시 즉시 무효화) |
 
 ---
@@ -53,6 +59,7 @@ CI/CD     : GitHub Actions (ruff lint/format + pytest)
 │   │   ├── reminder_routers.py       # 복약 알림 설정
 │   │   ├── health_log_routers.py     # 건강 일지 + AI 분석
 │   │   ├── health_goal_routers.py    # 건강 목표 관리
+│   │   ├── health_insight_routers.py # AI 건강 인사이트·문진·타임라인
 │   │   ├── health_report_routers.py  # 건강 리포트 PDF
 │   │   ├── drug_interaction_routers.py # 약물 상호작용
 │   │   ├── stats_routers.py    # 통계/대시보드
@@ -66,11 +73,14 @@ CI/CD     : GitHub Actions (ruff lint/format + pytest)
 │   │   ├── symptom_checks.py   # SymptomCheck
 │   │   ├── medication_reminders.py   # MedicationReminder
 │   │   ├── appointments.py     # Appointment
+│   │   ├── pre_visit_questionnaires.py # 진료 전 문진
 │   │   └── ...
 │   ├── services/               # 비즈니스 로직 + AI 연동
 │   │   ├── vitals.py           # Gemini 이상 감지
 │   │   ├── symptom_checks.py   # RAG + Gemini 증상 분석
 │   │   ├── medication_reminders.py   # 알림 발송 로직
+│   │   ├── health_insights.py  # 건강 리스크·문진 요약·타임라인·복약 패턴
+│   │   ├── health_goals.py     # 목표 CRUD + 맞춤 추천
 │   │   └── rag/                # RAG 파이프라인
 │   │       ├── guideline_rag.py  # 의학 가이드라인 검색
 │   │       ├── drug_rag.py       # 약물 정보 검색
@@ -87,6 +97,8 @@ CI/CD     : GitHub Actions (ruff lint/format + pytest)
 │       ├── vitals/             # 바이탈 기록 + 추이 차트
 │       ├── symptom-check/      # AI 증상 체크
 │       ├── reminders/          # 복약 알림 설정
+│       ├── health-insights/    # AI 건강 인사이트·문진·의사용 타임라인
+│       ├── health-goals/goals/ # 건강 목표 + 맞춤 추천
 │       ├── appointments/       # 예약 관리
 │       └── ...
 ├── infra/                      # Nginx 설정
@@ -227,6 +239,39 @@ uv run celery -A ai_worker.main beat --loglevel=info
 | PATCH | `/notifications/{id}/read` | 개별 읽음 처리 | 의사·환자 |
 | PATCH | `/notifications/read-all` | 전체 읽음 처리 | 의사·환자 |
 
+### AI 건강 인사이트 `/api/v1/health-insights`
+
+| Method | Path | 설명 | 권한 |
+|--------|------|------|------|
+| GET | `/health-insights/risk` | 최근 건강일지·바이탈·증상체크 기반 건강 리스크 산정 + 위험 알림 자동 생성 | 환자 |
+| GET | `/health-insights/medication-adherence` | 처방 기간 대비 복약 체크율 분석 | 환자 |
+| GET | `/health-insights/medication-patterns` | 요일별 복약 누락, 연속 누락, 개선 제안 분석 | 환자 |
+| POST | `/health-insights/appointments/{appointment_id}/pre-visit` | 예약 전 문진 작성 + AI 요약 생성 | 환자 |
+| GET | `/health-insights/pre-visits` | 문진 요약 목록 조회 | 의사·환자 |
+| POST | `/health-insights/pre-visits/{pre_visit_id}/clinical-note-draft` | 문진 기반 SOAP 진료 메모 초안 생성 | 의사 |
+| GET | `/health-insights/patients/{patient_id}/timeline` | 환자 진료·바이탈·일지·증상·문진 통합 타임라인 | 의사 |
+
+### 건강 목표 `/api/v1/health-goals/goals`
+
+| Method | Path | 설명 | 권한 |
+|--------|------|------|------|
+| POST | `/health-goals/goals` | 건강 목표 생성 | 환자 |
+| GET | `/health-goals/goals` | 건강 목표 목록 조회 | 환자 |
+| GET | `/health-goals/goals/recommendations` | 최근 건강 기록 기반 맞춤 목표 추천 | 환자 |
+| PATCH | `/health-goals/goals/{id}` | 현재값·달성 여부 업데이트 | 환자 |
+| DELETE | `/health-goals/goals/{id}` | 목표 삭제 | 환자 |
+| GET | `/health-goals/goals/{id}/history` | 목표 진행 이력 조회 | 환자 |
+
+### 사용자 `/api/v1/users`
+
+| Method | Path | 설명 | 권한 |
+|--------|------|------|------|
+| GET | `/users/me` | 내 프로필 조회 | 의사·환자 |
+| PATCH | `/users/me` | 내 프로필/비밀번호 수정 | 의사·환자 |
+| POST | `/users/me/profile-image` | 프로필 이미지 업로드 (JPG/PNG/WEBP, 2MB 이하) | 의사·환자 |
+| GET | `/users/patients/search` | 환자 검색 | 의사 |
+| GET | `/users/doctors/search` | 의사 검색 | 환자 |
+
 ### 통계/대시보드 `/api/v1/stats`
 
 | Method | Path | 설명 | 권한 |
@@ -307,6 +352,39 @@ Celery Beat (매 분 실행)
             └ 권장 사항
 ```
 
+### 6. AI 건강 인사이트
+
+```
+최근 건강 데이터 수집
+  ├ 건강일지: 통증 점수, 기분, 증상
+  ├ 바이탈: 혈압, 혈당, 심박, 체중
+  ├ 증상 체크: 긴급도, 진료 권고 여부
+  └ 복약 체크: 처방 기간 대비 체크 기록
+       └→ 리스크 점수·복약 순응도·요일별 누락 패턴 계산
+            ├ risk_level: 낮음 | 주의 | 높음
+            ├ 위험 신호 요약
+            ├ 환자 행동 권고
+            └ 주의/높음이면 환자·담당 의사에게 알림 생성
+```
+
+### 7. 진료 전 문진 + 진료 메모 초안
+
+```
+환자 예약 전 문진 작성
+  └→ Gemini 요약 생성
+       ├ 핵심 호소
+       ├ 확인할 위험 신호
+       ├ 의사가 물어볼 질문
+       └ 환자 질문
+
+의사 문진 확인
+  └→ SOAP 형식 진료 메모 초안 생성
+       ├ S: 주관적 증상
+       ├ O: 문진 기반 객관 정보
+       ├ A: 감별 필요 사항
+       └ P: 확인/검사/추적 계획 초안
+```
+
 ---
 
 ## 🧪 품질 관리
@@ -321,6 +399,13 @@ Celery Beat (매 분 실행)
 # 타입 체크 (Mypy)
 ./scripts/ci/check_mypy.sh
 ```
+
+최근 검증 결과:
+
+- `uv run --group app --group dev ruff check .` 통과
+- `uv run --group app --group dev pytest` 61 passed
+- `cd frontend && npm run lint` 통과
+  - Next.js `<img>` 최적화 관련 warning 2개는 남아 있음
 
 ---
 
