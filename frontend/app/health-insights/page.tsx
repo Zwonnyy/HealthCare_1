@@ -11,9 +11,12 @@ import { Textarea } from "@/components/ui/textarea";
 import {
   appointmentApi,
   healthInsightApi,
+  userApi,
   type Appointment,
   type HealthRisk,
   type MedicationAdherence,
+  type PatientSearchResult,
+  type PatientTimeline,
   type PreVisitQuestionnaire,
 } from "@/lib/api";
 import { getToken, getUser } from "@/lib/auth";
@@ -24,6 +27,14 @@ const riskColor: Record<string, string> = {
   높음: "text-red-600 bg-red-50 border-red-100",
 };
 
+const timelineTypeLabel: Record<string, string> = {
+  record: "진료",
+  health_log: "일지",
+  vital: "바이탈",
+  symptom_check: "증상",
+  pre_visit: "문진",
+};
+
 export default function HealthInsightsPage() {
   const router = useRouter();
   const user = getUser();
@@ -31,6 +42,10 @@ export default function HealthInsightsPage() {
   const [adherence, setAdherence] = useState<MedicationAdherence | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [preVisits, setPreVisits] = useState<PreVisitQuestionnaire[]>([]);
+  const [patientQuery, setPatientQuery] = useState("");
+  const [patientResults, setPatientResults] = useState<PatientSearchResult[]>([]);
+  const [timeline, setTimeline] = useState<PatientTimeline | null>(null);
+  const [timelineLoading, setTimelineLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
@@ -73,6 +88,32 @@ export default function HealthInsightsPage() {
       .catch(() => toast.error("AI 인사이트 데이터를 불러오지 못했어요."))
       .finally(() => setLoading(false));
   }, [router, user?.role]);
+
+  async function handlePatientSearch() {
+    if (!patientQuery.trim()) {
+      toast.error("환자 이름이나 이메일을 입력해주세요.");
+      return;
+    }
+    try {
+      const { data } = await userApi.searchPatients(patientQuery.trim());
+      setPatientResults(data);
+      if (data.length === 0) toast.info("검색된 환자가 없습니다.");
+    } catch {
+      toast.error("환자 검색에 실패했어요.");
+    }
+  }
+
+  async function loadTimeline(patient: PatientSearchResult) {
+    setTimelineLoading(true);
+    try {
+      const { data } = await healthInsightApi.patientTimeline(patient.id);
+      setTimeline(data);
+    } catch {
+      toast.error("환자 타임라인을 불러오지 못했어요.");
+    } finally {
+      setTimelineLoading(false);
+    }
+  }
 
   async function handleCreatePreVisit() {
     if (!form.appointment_id) {
@@ -121,6 +162,76 @@ export default function HealthInsightsPage() {
         </div>
 
         {loading && <div className="h-48 rounded-lg bg-zinc-200 dark:bg-zinc-800 animate-pulse" />}
+
+        {!loading && user?.role === "DOCTOR" && (
+          <section className="bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-lg p-5 mb-8">
+            <div className="flex flex-col md:flex-row md:items-end gap-3">
+              <div className="flex-1">
+                <Label>환자 검색</Label>
+                <Input
+                  value={patientQuery}
+                  onChange={(e) => setPatientQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handlePatientSearch();
+                  }}
+                  placeholder="환자 이름 또는 이메일"
+                  className="mt-2"
+                />
+              </div>
+              <Button onClick={handlePatientSearch} className="bg-blue-700 hover:bg-blue-800">
+                검색
+              </Button>
+            </div>
+
+            {patientResults.length > 0 && (
+              <div className="mt-4 flex flex-wrap gap-2">
+                {patientResults.map((patient) => (
+                  <button
+                    key={patient.id}
+                    type="button"
+                    onClick={() => loadTimeline(patient)}
+                    className="rounded-md border border-zinc-200 dark:border-zinc-700 px-3 py-2 text-left text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900"
+                  >
+                    <span className="font-medium text-zinc-900 dark:text-zinc-100">{patient.name}</span>
+                    <span className="ml-2 text-zinc-400">{patient.email}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+
+        {!loading && user?.role === "DOCTOR" && (
+          <section className="bg-white dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700 rounded-lg p-5 mb-8">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <h2 className="font-semibold text-zinc-900 dark:text-zinc-100">
+                {timeline ? `${timeline.patient_name} 타임라인` : "환자 타임라인"}
+              </h2>
+              {timeline && <span className="text-xs text-zinc-400">최근 {timeline.period_days}일</span>}
+            </div>
+            {timelineLoading && <div className="h-32 rounded-lg bg-zinc-100 dark:bg-zinc-900 animate-pulse" />}
+            {!timelineLoading && !timeline && <p className="text-sm text-zinc-400">환자를 선택하면 진료 흐름을 볼 수 있습니다.</p>}
+            {!timelineLoading && timeline?.items.length === 0 && <p className="text-sm text-zinc-400">표시할 타임라인이 없습니다.</p>}
+            {!timelineLoading && timeline && timeline.items.length > 0 && (
+              <div className="space-y-3">
+                {timeline.items.map((item) => (
+                  <article key={`${item.type}-${item.id}`} className="rounded-md border border-zinc-100 dark:border-zinc-700 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-full bg-blue-50 dark:bg-blue-900/30 px-2 py-0.5 text-xs font-semibold text-blue-700 dark:text-blue-300">
+                          {timelineTypeLabel[item.type] ?? item.type}
+                        </span>
+                        <p className="font-medium text-zinc-900 dark:text-zinc-100">{item.title}</p>
+                      </div>
+                      <p className="text-xs text-zinc-400">{new Date(item.occurred_at).toLocaleString("ko-KR")}</p>
+                    </div>
+                    <p className="text-sm text-zinc-600 dark:text-zinc-300 whitespace-pre-line">{item.summary}</p>
+                  </article>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
 
         {!loading && user?.role === "PATIENT" && (
           <div className="grid lg:grid-cols-2 gap-5 mb-8">

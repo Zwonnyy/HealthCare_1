@@ -3,10 +3,11 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, status
 from fastapi.responses import ORJSONResponse as Response
 
-from app.dependencies.security import get_patient_user, get_request_user
+from app.dependencies.security import get_doctor_user, get_patient_user, get_request_user
 from app.dtos.health_insights import (
     HealthRiskResponse,
     MedicationAdherenceResponse,
+    PatientTimelineResponse,
     PreVisitQuestionnaireCreateRequest,
     PreVisitQuestionnaireResponse,
 )
@@ -70,3 +71,18 @@ async def list_pre_visit_questionnaires(
         [PreVisitQuestionnaireResponse.model_validate(result).model_dump() for result in results],
         status_code=status.HTTP_200_OK,
     )
+
+
+@health_insight_router.get(
+    "/patients/{patient_id}/timeline",
+    response_model=PatientTimelineResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def get_patient_timeline(
+    patient_id: int,
+    doctor: Annotated[User, Depends(get_doctor_user)],
+    service: Annotated[HealthInsightService, Depends(HealthInsightService)],
+    days: Annotated[int, Query(ge=7, le=365)] = 90,
+) -> Response:
+    result = await service.patient_timeline(doctor=doctor, patient_id=patient_id, days=days)
+    return Response(result.model_dump(), status_code=status.HTTP_200_OK)

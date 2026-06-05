@@ -1,5 +1,5 @@
 import logging
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 
 from fastapi import HTTPException
 from google import genai
@@ -11,6 +11,8 @@ from app.dtos.health_insights import (
     HealthRiskResponse,
     MedicationAdherenceItem,
     MedicationAdherenceResponse,
+    PatientTimelineItem,
+    PatientTimelineResponse,
     PreVisitQuestionnaireCreateRequest,
     RiskSignal,
 )
@@ -18,7 +20,7 @@ from app.models.appointments import Appointment
 from app.models.health_logs import HealthLog, Mood
 from app.models.medication_checks import MedicationCheck
 from app.models.pre_visit_questionnaires import PreVisitQuestionnaire
-from app.models.records import Prescription
+from app.models.records import MedicalRecord, Prescription
 from app.models.symptom_checks import SymptomCheck, UrgencyLevel
 from app.models.users import User, UserRole
 from app.models.vitals import VitalRecord
@@ -182,6 +184,146 @@ class HealthInsightService:
         if appointment_id is not None:
             query = query.filter(appointment_id=appointment_id)
         return await query.limit(50)
+
+    async def patient_timeline(self, doctor: User, patient_id: int, days: int = 90) -> PatientTimelineResponse:
+        patient = await User.get_or_none(id=patient_id, role=UserRole.PATIENT)
+        if not patient:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="환자를 찾을 수 없습니다.")
+
+        has_record = await MedicalRecord.filter(doctor_id=doctor.id, patient_id=patient_id).exists()
+        has_appointment = await Appointment.filter(doctor_id=doctor.id, patient_id=patient_id).exists()
+        if not has_record and not has_appointment:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="접근 권한이 없습니다.")
+
+        since_date = date.today() - timedelta(days=days)
+        since_datetime = datetime.combine(since_date, time.min)
+        items = [
+            *await _record_timeline_items(doctor_id=doctor.id, patient_id=patient_id, since=since_datetime),
+            *await _health_log_timeline_items(patient_id=patient_id, since=since_date),
+            *await _vital_timeline_items(patient_id=patient_id, since=since_datetime),
+            *await _symptom_timeline_items(patient_id=patient_id, since=since_datetime),
+            *await _pre_visit_timeline_items(doctor_id=doctor.id, patient_id=patient_id, since=since_datetime),
+        ]
+
+        items.sort(key=lambda item: item.occurred_at, reverse=True)
+        return PatientTimelineResponse(
+            patient_id=patient.id,
+            patient_name=patient.name,
+            period_days=days,
+            items=items[:100],
+        )
+
+
+async def _record_timeline_items(doctor_id: int, patient_id: int, since: datetime) -> list[PatientTimelineItem]:
+    records = await MedicalRecord.filter(
+        doctor_id=doctor_id,
+        patient_id=patient_id,
+        visited_at__gte=since,
+    ).order_by("-visited_at")
+    items: list[PatientTimelineItem] = []
+    for record in records:
+        prescriptions = await record.prescriptions.all()
+        medication_names = ", ".join(p.medication_name for p in prescriptions) or "처방 없음"
+        items.append(
+            PatientTimelineItem(
+                id=record.id,
+                type="record",
+                title=f"진료 기록 · {record.diagnosis}",
+                summary=f"{record.symptoms} / 처방: {medication_names}",
+                occurred_at=record.visited_at,
+                metadata={"diagnosis": record.diagnosis, "prescription_count": len(prescriptions)},
+            )
+        )
+    return items
+
+
+async def _health_log_timeline_items(patient_id: int, since: date) -> list[PatientTimelineItem]:
+    logs = await HealthLog.filter(patient_id=patient_id, log_date__gte=since).order_by("-log_date")
+    return [
+        PatientTimelineItem(
+            id=log.id,
+            type="health_log",
+            title=f"건강일지 · 통증 {log.pain_score}/10",
+            summary=log.symptoms_text,
+            occurred_at=datetime.combine(log.log_date, time.min),
+            metadata={"pain_score": log.pain_score, "mood": log.mood.value},
+        )
+        for log in logs
+    ]
+
+
+async def _vital_timeline_items(patient_id: int, since: datetime) -> list[PatientTimelineItem]:
+    vitals = await VitalRecord.filter(patient_id=patient_id, recorded_at__gte=since).order_by("-recorded_at")
+    return [
+        PatientTimelineItem(
+            id=vital.id,
+            type="vital",
+            title="바이탈 기록",
+            summary=_format_vital_summary(vital),
+            occurred_at=vital.recorded_at,
+            metadata={
+                "systolic": vital.systolic,
+                "diastolic": vital.diastolic,
+                "blood_sugar": vital.blood_sugar,
+                "heart_rate": vital.heart_rate,
+                "weight": vital.weight,
+            },
+        )
+        for vital in vitals
+    ]
+
+
+async def _symptom_timeline_items(patient_id: int, since: datetime) -> list[PatientTimelineItem]:
+    symptoms = await SymptomCheck.filter(patient_id=patient_id, created_at__gte=since).order_by("-created_at")
+    return [
+        PatientTimelineItem(
+            id=symptom.id,
+            type="symptom_check",
+            title=f"증상 체크 · {symptom.urgency or '평가 없음'}",
+            summary=symptom.symptom_text,
+            occurred_at=symptom.created_at,
+            metadata={
+                "urgency": symptom.urgency.value if symptom.urgency else None,
+                "suggest_appointment": symptom.suggest_appointment,
+            },
+        )
+        for symptom in symptoms
+    ]
+
+
+async def _pre_visit_timeline_items(doctor_id: int, patient_id: int, since: datetime) -> list[PatientTimelineItem]:
+    pre_visits = await PreVisitQuestionnaire.filter(patient_id=patient_id, created_at__gte=since).order_by(
+        "-created_at"
+    )
+    items: list[PatientTimelineItem] = []
+    for pre_visit in pre_visits:
+        appointment = await pre_visit.appointment
+        if appointment.doctor_id != doctor_id:
+            continue
+        items.append(
+            PatientTimelineItem(
+                id=pre_visit.id,
+                type="pre_visit",
+                title=f"진료 전 문진 · 예약 #{pre_visit.appointment_id}",
+                summary=pre_visit.ai_summary or pre_visit.symptoms,
+                occurred_at=pre_visit.created_at,
+                metadata={"appointment_id": pre_visit.appointment_id, "severity": pre_visit.severity},
+            )
+        )
+    return items
+
+
+def _format_vital_summary(vital: VitalRecord) -> str:
+    parts = []
+    if vital.systolic or vital.diastolic:
+        parts.append(f"혈압 {vital.systolic or '-'} / {vital.diastolic or '-'}")
+    if vital.blood_sugar is not None:
+        parts.append(f"혈당 {vital.blood_sugar:g}")
+    if vital.heart_rate is not None:
+        parts.append(f"심박 {vital.heart_rate}")
+    if vital.weight is not None:
+        parts.append(f"체중 {vital.weight:g}kg")
+    return ", ".join(parts) or vital.notes or "입력된 바이탈 기록"
 
 
 async def _summarize_pre_visit(data: PreVisitQuestionnaireCreateRequest) -> str:

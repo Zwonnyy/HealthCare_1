@@ -56,3 +56,19 @@ class PreVisitQuestionnaireResponse(BaseSerializerModel):
     ai_summary: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class PatientTimelineItem(BaseModel):
+    id: int
+    type: str
+    title: str
+    summary: str
+    occurred_at: datetime
+    metadata: dict[str, str | int | float | bool | None] = Field(default_factory=dict)
+
+
+class PatientTimelineResponse(BaseModel):
+    patient_id: int
+    patient_name: str
+    period_days: int
+    items: list[PatientTimelineItem]

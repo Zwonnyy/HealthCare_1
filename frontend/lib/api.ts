@@ -548,6 +548,22 @@ export interface PreVisitQuestionnaire {
   updated_at: string;
 }
 
+export interface PatientTimelineItem {
+  id: number;
+  type: "record" | "health_log" | "vital" | "symptom_check" | "pre_visit";
+  title: string;
+  summary: string;
+  occurred_at: string;
+  metadata: Record<string, string | number | boolean | null>;
+}
+
+export interface PatientTimeline {
+  patient_id: number;
+  patient_name: string;
+  period_days: number;
+  items: PatientTimelineItem[];
+}
+
 export const healthInsightApi = {
   risk: (days = 30) => api.get<HealthRisk>("/health-insights/risk", { params: { days } }),
   medicationAdherence: (days = 30) =>
@@ -567,4 +583,6 @@ export const healthInsightApi = {
     api.get<PreVisitQuestionnaire[]>("/health-insights/pre-visits", {
       params: appointmentId ? { appointment_id: appointmentId } : undefined,
     }),
+  patientTimeline: (patientId: number, days = 90) =>
+    api.get<PatientTimeline>(`/health-insights/patients/${patientId}/timeline`, { params: { days } }),
 };
