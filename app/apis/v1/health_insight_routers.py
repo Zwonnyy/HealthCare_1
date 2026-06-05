@@ -8,6 +8,7 @@ from app.dtos.health_insights import (
     ClinicalNoteDraftResponse,
     HealthRiskResponse,
     MedicationAdherenceResponse,
+    MedicationPatternResponse,
     PatientTimelineResponse,
     PreVisitQuestionnaireCreateRequest,
     PreVisitQuestionnaireResponse,
@@ -38,6 +39,18 @@ async def get_medication_adherence(
     days: Annotated[int, Query(ge=7, le=90)] = 30,
 ) -> Response:
     result = await service.medication_adherence(patient=patient, days=days)
+    return Response(result.model_dump(), status_code=status.HTTP_200_OK)
+
+
+@health_insight_router.get(
+    "/medication-patterns", response_model=MedicationPatternResponse, status_code=status.HTTP_200_OK
+)
+async def get_medication_patterns(
+    patient: Annotated[User, Depends(get_patient_user)],
+    service: Annotated[HealthInsightService, Depends(HealthInsightService)],
+    days: Annotated[int, Query(ge=7, le=90)] = 30,
+) -> Response:
+    result = await service.medication_patterns(patient=patient, days=days)
     return Response(result.model_dump(), status_code=status.HTTP_200_OK)
 
 

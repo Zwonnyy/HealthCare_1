@@ -534,6 +534,22 @@ export interface MedicationAdherence {
   items: MedicationAdherenceItem[];
 }
 
+export interface MedicationPatternDay {
+  weekday: string;
+  expected_count: number;
+  checked_count: number;
+  missed_count: number;
+  adherence_rate: number;
+}
+
+export interface MedicationPattern {
+  period_days: number;
+  current_missed_streak: number;
+  weakest_weekdays: MedicationPatternDay[];
+  summary: string;
+  suggestions: string[];
+}
+
 export interface PreVisitQuestionnaire {
   id: number;
   appointment_id: number;
@@ -579,6 +595,8 @@ export const healthInsightApi = {
   risk: (days = 30) => api.get<HealthRisk>("/health-insights/risk", { params: { days } }),
   medicationAdherence: (days = 30) =>
     api.get<MedicationAdherence>("/health-insights/medication-adherence", { params: { days } }),
+  medicationPatterns: (days = 30) =>
+    api.get<MedicationPattern>("/health-insights/medication-patterns", { params: { days } }),
   createPreVisit: (
     appointmentId: number,
     data: {

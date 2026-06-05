@@ -13,6 +13,8 @@ from app.dtos.health_insights import (
     HealthRiskResponse,
     MedicationAdherenceItem,
     MedicationAdherenceResponse,
+    MedicationPatternDay,
+    MedicationPatternResponse,
     PatientTimelineItem,
     PatientTimelineResponse,
     PreVisitQuestionnaireCreateRequest,
@@ -176,6 +178,42 @@ class HealthInsightService:
             summary = "복약 누락이 잦습니다. 알림 시간 조정이나 의료진 상담을 권장합니다."
 
         return MedicationAdherenceResponse(period_days=days, overall_rate=overall, summary=summary, items=items)
+
+    async def medication_patterns(self, patient: User, days: int = 30) -> MedicationPatternResponse:
+        today = date.today()
+        since = today - timedelta(days=days - 1)
+        prescriptions = await Prescription.all().prefetch_related("record")
+        expected_by_day: dict[date, int] = {}
+
+        for prescription in prescriptions:
+            record = await prescription.record
+            if record.patient_id != patient.id:
+                continue
+            start = max(record.visited_at.date(), since)
+            end = min(record.visited_at.date() + timedelta(days=prescription.duration_days - 1), today)
+            for day in _date_range(start, end):
+                expected_by_day[day] = expected_by_day.get(day, 0) + 1
+
+        checks = await MedicationCheck.filter(patient_id=patient.id, check_date__gte=since, check_date__lte=today)
+        checked_by_day: dict[date, int] = {}
+        for check in checks:
+            checked_by_day[check.check_date] = checked_by_day.get(check.check_date, 0) + 1
+
+        weekday_stats = _build_weekday_medication_stats(expected_by_day, checked_by_day)
+        weakest = sorted(
+            [item for item in weekday_stats if item.expected_count > 0],
+            key=lambda item: (item.adherence_rate, -item.missed_count),
+        )[:3]
+        current_streak = _current_missed_streak(today, expected_by_day, checked_by_day)
+        suggestions = _medication_pattern_suggestions(weakest, current_streak)
+        summary = _medication_pattern_summary(expected_by_day, checked_by_day, current_streak)
+        return MedicationPatternResponse(
+            period_days=days,
+            current_missed_streak=current_streak,
+            weakest_weekdays=weakest,
+            summary=summary,
+            suggestions=suggestions,
+        )
 
     async def create_pre_visit(
         self,
@@ -387,6 +425,73 @@ def _format_risk_signal_summary(risk: HealthRiskResponse) -> str:
     if not risk.signals:
         return "세부 신호 없음"
     return ", ".join(f"{signal.label}({signal.detail})" for signal in risk.signals[:3])
+
+
+def _date_range(start: date, end: date):
+    if start > end:
+        return
+    cursor = start
+    while cursor <= end:
+        yield cursor
+        cursor += timedelta(days=1)
+
+
+def _build_weekday_medication_stats(
+    expected_by_day: dict[date, int],
+    checked_by_day: dict[date, int],
+) -> list[MedicationPatternDay]:
+    weekday_names = ["월", "화", "수", "목", "금", "토", "일"]
+    stats = []
+    for weekday, name in enumerate(weekday_names):
+        expected = sum(count for day, count in expected_by_day.items() if day.weekday() == weekday)
+        checked = sum(min(checked_by_day.get(day, 0), count) for day, count in expected_by_day.items() if day.weekday() == weekday)
+        missed = max(0, expected - checked)
+        rate = round((checked / expected) * 100, 1) if expected else 0
+        stats.append(
+            MedicationPatternDay(
+                weekday=name,
+                expected_count=expected,
+                checked_count=checked,
+                missed_count=missed,
+                adherence_rate=rate,
+            )
+        )
+    return stats
+
+
+def _current_missed_streak(today: date, expected_by_day: dict[date, int], checked_by_day: dict[date, int]) -> int:
+    streak = 0
+    cursor = today
+    while cursor in expected_by_day:
+        if checked_by_day.get(cursor, 0) >= expected_by_day[cursor]:
+            break
+        streak += 1
+        cursor -= timedelta(days=1)
+    return streak
+
+
+def _medication_pattern_summary(
+    expected_by_day: dict[date, int],
+    checked_by_day: dict[date, int],
+    current_streak: int,
+) -> str:
+    total_expected = sum(expected_by_day.values())
+    total_checked = sum(min(checked_by_day.get(day, 0), count) for day, count in expected_by_day.items())
+    if total_expected == 0:
+        return "분석할 복약 일정이 아직 없습니다."
+    rate = round((total_checked / total_expected) * 100, 1)
+    if current_streak >= 2:
+        return f"최근 {current_streak}일 연속 복약 누락 가능성이 있습니다. 전체 복약률은 {rate}%입니다."
+    return f"최근 복약률은 {rate}%입니다. 반복적으로 놓치는 요일을 확인해보세요."
+
+
+def _medication_pattern_suggestions(weakest: list[MedicationPatternDay], current_streak: int) -> list[str]:
+    suggestions = ["복약 체크를 실제 복용 직후에 기록하면 누락 패턴을 더 정확히 볼 수 있습니다."]
+    if weakest and weakest[0].missed_count > 0:
+        suggestions.insert(0, f"{weakest[0].weekday}요일 복약 알림 시간을 다시 조정해보세요.")
+    if current_streak >= 2:
+        suggestions.insert(0, "연속 누락이 이어지고 있어 오늘 복용 여부를 먼저 확인하세요.")
+    return suggestions
 
 
 async def _summarize_pre_visit(data: PreVisitQuestionnaireCreateRequest) -> str:

@@ -34,6 +34,22 @@ class MedicationAdherenceResponse(BaseModel):
     items: list[MedicationAdherenceItem]
 
 
+class MedicationPatternDay(BaseModel):
+    weekday: str
+    expected_count: int
+    checked_count: int
+    missed_count: int
+    adherence_rate: float
+
+
+class MedicationPatternResponse(BaseModel):
+    period_days: int
+    current_missed_streak: int
+    weakest_weekdays: list[MedicationPatternDay]
+    summary: str
+    suggestions: list[str]
+
+
 class PreVisitQuestionnaireCreateRequest(BaseModel):
     symptoms: str
     onset: str | None = None

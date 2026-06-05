@@ -16,6 +16,7 @@ import {
   type ClinicalNoteDraft,
   type HealthRisk,
   type MedicationAdherence,
+  type MedicationPattern,
   type PatientSearchResult,
   type PatientTimeline,
   type PreVisitQuestionnaire,
@@ -41,6 +42,7 @@ export default function HealthInsightsPage() {
   const user = getUser();
   const [risk, setRisk] = useState<HealthRisk | null>(null);
   const [adherence, setAdherence] = useState<MedicationAdherence | null>(null);
+  const [medicationPattern, setMedicationPattern] = useState<MedicationPattern | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [preVisits, setPreVisits] = useState<PreVisitQuestionnaire[]>([]);
   const [patientQuery, setPatientQuery] = useState("");
@@ -72,6 +74,7 @@ export default function HealthInsightsPage() {
         ? [
             healthInsightApi.risk(),
             healthInsightApi.medicationAdherence(),
+            healthInsightApi.medicationPatterns(),
             appointmentApi.list(1, 50),
             healthInsightApi.preVisits(),
           ]
@@ -82,8 +85,9 @@ export default function HealthInsightsPage() {
         if (user?.role === "PATIENT") {
           setRisk(responses[0].data as HealthRisk);
           setAdherence(responses[1].data as MedicationAdherence);
-          setAppointments((responses[2].data as { items: Appointment[] }).items);
-          setPreVisits(responses[3].data as PreVisitQuestionnaire[]);
+          setMedicationPattern(responses[2].data as MedicationPattern);
+          setAppointments((responses[3].data as { items: Appointment[] }).items);
+          setPreVisits(responses[4].data as PreVisitQuestionnaire[]);
         } else {
           setPreVisits(responses[0].data as PreVisitQuestionnaire[]);
         }
@@ -294,6 +298,33 @@ export default function HealthInsightsPage() {
                   </div>
                 ))}
               </div>
+              {medicationPattern && (
+                <div className="mt-5 rounded-md bg-zinc-50 dark:bg-zinc-900 p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">누락 패턴</p>
+                    <span className="text-xs text-zinc-400">
+                      연속 누락 {medicationPattern.current_missed_streak}일
+                    </span>
+                  </div>
+                  <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-300">{medicationPattern.summary}</p>
+                  {medicationPattern.weakest_weekdays.length > 0 && (
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      {medicationPattern.weakest_weekdays.map((day) => (
+                        <div key={day.weekday} className="rounded-md border border-zinc-200 dark:border-zinc-700 p-2">
+                          <p className="text-xs font-semibold text-zinc-700 dark:text-zinc-300">{day.weekday}요일</p>
+                          <p className="mt-1 text-lg font-bold text-blue-700 dark:text-blue-300">{day.adherence_rate}%</p>
+                          <p className="text-xs text-zinc-400">누락 {day.missed_count}회</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <ul className="mt-3 space-y-1 text-xs text-zinc-500">
+                    {medicationPattern.suggestions.map((suggestion) => (
+                      <li key={suggestion}>{suggestion}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </section>
           </div>
         )}
